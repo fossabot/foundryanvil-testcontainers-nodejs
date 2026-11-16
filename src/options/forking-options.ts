@@ -1,175 +1,136 @@
+import { groupFlags } from "../flags/registry";
+import { TransactionHash } from "../types";
 import {
-  AnvilOptions,
-  GetAnvilOptions,
-  SetFlagFunction,
-  ToggleFlagFunction,
-} from "./anvil-options";
+  OptionsGroup,
+  registerOptionsGroup,
+  StoreHandle,
+} from "./options-view";
+import {
+  forkUrlArg,
+  headerArg,
+  hexArg,
+  integerArg,
+  Integerish,
+} from "./validators";
 
-export class ForkingOptions {
-  private readonly setCliFlag: SetFlagFunction;
-  private readonly toggleCliFlag: ToggleFlagFunction;
-  private readonly getAnvilOptions: GetAnvilOptions;
-  constructor(
-    setFlagFunction: SetFlagFunction,
-    toggleFlagFunction: ToggleFlagFunction,
-    getAnvilOptions: GetAnvilOptions,
-  ) {
-    this.setCliFlag = setFlagFunction;
-    this.toggleCliFlag = toggleFlagFunction;
-    this.getAnvilOptions = getAnvilOptions;
+/** Flags of {@link ForkingOptions}. */
+export const FORK_FLAGS = groupFlags("fork");
+
+const I128 = 2n ** 127n;
+
+/**
+ * Fork a remote network (`.fork`). Every option requires `withForkUrl()`
+ * (checked at build time, so call order doesn't matter). The URL is resolved
+ * from inside the container: use `host.docker.internal` for host nodes.
+ *
+ * @example new AnvilOptions().fork.withForkUrl(url, 18_000_000).withRetries(10).noRateLimit()
+ */
+export class ForkingOptions extends OptionsGroup {
+  protected readonly groupName = "fork";
+
+  /** @internal */
+  constructor(store: StoreHandle) {
+    super(store);
   }
 
   /**
-   * Sets the number of assumed available compute units per second for this provider.
-   * Sets the `--compute-units-per-second` flag.
-   * @param cups Compute units per second. Defaults to 330.
-   * @example
-   * ```typescript
-   * const options: AnvilOptions = new AnvilOptions().fork.withComputeUnitsPerSecond(600);
-   * ```
+   * Remote endpoint (`--fork-url`): `http(s)`/`ws(s)` URL, `localhost:PORT`
+   * or IPC path. `url@block` and `blockNumber` set `--fork-block-number`.
    */
-  public withComputeUnitsPerSecond(cups: number): AnvilOptions {
-    this.setCliFlag("--compute-units-per-second", cups.toString());
-    return this.getAnvilOptions();
+  public withForkUrl(url: string, blockNumber?: Integerish): this {
+    const parsed = forkUrlArg("--fork-url", url);
+    this.setValue("--fork-url", parsed.url);
+    const block =
+      blockNumber ??
+      (parsed.blockNumber === undefined
+        ? undefined
+        : BigInt(parsed.blockNumber));
+    return block === undefined ? this : this.withForkBlockNumber(block);
   }
 
-  /**
-   * Fetch state over a remote endpoint instead of starting from an empty state.
-   * Sets the `--fork-url` flag.
-   * @param url Remote endpoint URL.
-   * @example
-   * ```typescript
-   * const options: AnvilOptions = new AnvilOptions().fork.withForkUrl("https://mainnet.infura.io/v3/YOUR_KEY");
-   * ```
-   */
-  public withForkUrl(url: string): AnvilOptions {
-    this.setCliFlag("--fork-url", url);
-    return this.getAnvilOptions();
+  /** Block to fork from; negative is relative to `latest` (`--fork-block-number`). Conflicts with `withForkTransactionHash`. */
+  public withForkBlockNumber(blockNumber: Integerish): this {
+    return this.setValue(
+      "--fork-block-number",
+      integerArg("--fork-block-number", blockNumber, {
+        min: -I128,
+        max: I128 - 1n,
+      }),
+    );
   }
 
-  /**
-   * Fetch state from a specific block number over a remote endpoint.
-   * Sets the `--fork-block-number` flag.
-   * @param blockNumber Block number.
-   * @example
-   * ```typescript
-   * const options: AnvilOptions = new AnvilOptions().fork.withForkBlockNumber(18000000);
-   * ```
-   */
-  public withForkBlockNumber(blockNumber: number): AnvilOptions {
-    this.setCliFlag("--fork-block-number", blockNumber.toString());
-    return this.getAnvilOptions();
+  /** Fork from the state after a transaction (`--fork-transaction-hash`). Conflicts with `withForkBlockNumber`. */
+  public withForkTransactionHash(hash: TransactionHash): this {
+    return this.setValue(
+      "--fork-transaction-hash",
+      hexArg("--fork-transaction-hash", hash, 32, "transaction hash"),
+    );
   }
 
-  /**
-   * Specify chain id to skip fetching it from remote endpoint.
-   * Sets the `--fork-chain-id` flag.
-   * @param chainId Chain ID.
-   * @example
-   * ```typescript
-   * const options: AnvilOptions = new AnvilOptions().fork.withForkChainId(1);
-   * ```
-   */
-  public withForkChainId(chainId: number): AnvilOptions {
-    this.setCliFlag("--fork-chain-id", chainId.toString());
-    return this.getAnvilOptions();
+  /** Skip fetching the chain id – offline start (`--fork-chain-id`). Also needs a fork block number or transaction hash. */
+  public withForkChainId(chainId: Integerish): this {
+    return this.setValue(
+      "--fork-chain-id",
+      integerArg("--fork-chain-id", chainId, { min: 1n }),
+    );
   }
 
-  /**
-   * Headers to use for the rpc client, e.g. "User-Agent: test-agent".
-   * Sets the `--fork-header` flag.
-   * @param header Header string.
-   * @example
-   * ```typescript
-   * const options: AnvilOptions = new AnvilOptions().fork.withForkHeader("User-Agent: test-agent");
-   * ```
-   */
-  public withForkHeader(header: string): AnvilOptions {
-    this.setCliFlag("--fork-header", header);
-    return this.getAnvilOptions();
+  /** Adds an HTTP header `Name: value` for the remote (`--fork-header`, repeatable). */
+  public withForkHeader(header: string): this {
+    return this.addValue("--fork-header", headerArg("--fork-header", header));
   }
 
-  /**
-   * Initial retry backoff on encountering errors.
-   * Sets the `--fork-retry-backoff` flag.
-   * @param backoff Backoff in milliseconds.
-   * @example
-   * ```typescript
-   * const options: AnvilOptions = new AnvilOptions().fork.withForkRetryBackoff(1000);
-   * ```
-   */
-  public withForkRetryBackoff(backoff: number): AnvilOptions {
-    this.setCliFlag("--fork-retry-backoff", backoff.toString());
-    return this.getAnvilOptions();
+  /** Replaces all remote HTTP headers; none removes the flag. */
+  public withForkHeaders(...headers: readonly string[]): this {
+    const validated = headers.map((header) =>
+      headerArg("--fork-header", header),
+    );
+    return validated.length === 0
+      ? this.unsetFlags(["--fork-header"])
+      : this.setValue("--fork-header", validated);
   }
 
-  /**
-   * Fetch state from after a specific transaction hash has been applied over a remote endpoint.
-   * Sets the `--fork-transaction-hash` flag.
-   * @param hash Transaction hash.
-   * @example
-   * ```typescript
-   * const options: AnvilOptions = new AnvilOptions().fork.withForkTransactionHash("0x...");
-   * ```
-   */
-  public withForkTransactionHash(hash: string): AnvilOptions {
-    this.setCliFlag("--fork-transaction-hash", hash);
-    return this.getAnvilOptions();
+  /** Initial retry backoff in ms (`--fork-retry-backoff`). */
+  public withForkRetryBackoff(milliseconds: Integerish): this {
+    return this.setValue(
+      "--fork-retry-backoff",
+      integerArg("--fork-retry-backoff", milliseconds),
+    );
   }
 
-  /**
-   * Disables rate limiting for this node's provider.
-   * Sets the `--no-rate-limit` flag.
-   * @param enabled Whether to enable. Defaults to true.
-   * @example
-   * ```typescript
-   * const options: AnvilOptions = new AnvilOptions().fork.noRateLimit();
-   * ```
-   */
-  public noRateLimit(enabled: boolean = true): AnvilOptions {
-    this.toggleCliFlag("--no-rate-limit", enabled);
-    return this.getAnvilOptions();
+  /** Retries for spurious network errors (`--retries`, default 5). */
+  public withRetries(retries: Integerish): this {
+    return this.setValue(
+      "--retries",
+      integerArg("--retries", retries, { max: 4294967295n }),
+    );
   }
 
-  /**
-   * Explicitly disables the use of RPC caching.
-   * Sets the `--no-storage-caching` flag.
-   * @param enabled Whether to enable. Defaults to true.
-   * @example
-   * ```typescript
-   * const options: AnvilOptions = new AnvilOptions().fork.noStorageCaching();
-   * ```
-   */
-  public noStorageCaching(enabled: boolean = true): AnvilOptions {
-    this.toggleCliFlag("--no-storage-caching", enabled);
-    return this.getAnvilOptions();
+  /** Remote request timeout in ms (`--timeout`, default 45000). */
+  public withTimeout(milliseconds: Integerish): this {
+    return this.setValue(
+      "--timeout",
+      integerArg("--timeout", milliseconds, { min: 1n }),
+    );
   }
 
-  /**
-   * Number of retry requests for spurious networks (timed out requests).
-   * Sets the `--retries` flag.
-   * @param retries Number of retries. Defaults to 5.
-   * @example
-   * ```typescript
-   * const options: AnvilOptions = new AnvilOptions().fork.withRetries(10);
-   * ```
-   */
-  public withRetries(retries: number): AnvilOptions {
-    this.setCliFlag("--retries", retries.toString());
-    return this.getAnvilOptions();
+  /** Rate-limit budget (`--compute-units-per-second`, default 330). */
+  public withComputeUnitsPerSecond(cups: Integerish): this {
+    return this.setValue(
+      "--compute-units-per-second",
+      integerArg("--compute-units-per-second", cups, { min: 1n }),
+    );
   }
 
-  /**
-   * Timeout in ms for requests sent to remote JSON-RPC server in forking mode.
-   * Sets the `--timeout` flag.
-   * @param timeout Timeout in ms. Defaults to 45000.
-   * @example
-   * ```typescript
-   * const options: AnvilOptions = new AnvilOptions().fork.withTimeout(60000);
-   * ```
-   */
-  public withTimeout(timeout: number): AnvilOptions {
-    this.setCliFlag("--timeout", timeout.toString());
-    return this.getAnvilOptions();
+  /** Disable rate limiting (`--no-rate-limit`). */
+  public noRateLimit(enabled = true): this {
+    return this.toggleFlag("--no-rate-limit", enabled);
+  }
+
+  /** Read every storage slot from the remote (`--no-storage-caching`). */
+  public noStorageCaching(enabled = true): this {
+    return this.toggleFlag("--no-storage-caching", enabled);
   }
 }
+
+registerOptionsGroup("fork", (store) => new ForkingOptions(store));

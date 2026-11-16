@@ -1,6 +1,6 @@
 {
   "name": "@hellaweb3/foundryanvil-testcontainers-nodejs",
-  "description": "This Typescript module provides a Fluent API style method of configuring and starting a Anvil testcontainers node. During your test execution, the module provides a viem test client and streamlined helper methods to interact with the node.",
+  "description": "Fluent, type-safe Testcontainers module for Foundry Anvil: every anvil CLI flag with conflict/dependency validation, reliable startup, host/container state transfer and a chain-aware viem test client with helpers.",
   "homepage": "https://github.com/hella-web3/foundryanvil-testcontainers-nodejs#readme",
   "repository": "https://github.com/hella-web3/foundryanvil-testcontainers-nodejs",
   "bugs": "https://github.com/hella-web3/foundryanvil-testcontainers-nodejs/issues",
@@ -12,12 +12,11 @@
     "viem",
     "evm"
   ],
-  "version": "0.2.3",
+  "version": "0.3.0",
   "license": "MIT",
   "author": "Chris Anatalio",
   "files": [
-    "dist",
-    "src"
+    "dist"
   ],
   "type": "module",
   "main": "./dist/index.cjs",
@@ -38,8 +37,11 @@
   },
   "scripts": {
     "dev": "tsdx dev",
-    "build": "tsdx build",
+    "build": "tsdx build && node scripts/compact-dist.mjs",
     "test": "jest --colors --injectGlobals",
+    "test:unit": "jest --colors --injectGlobals test/unit",
+    "test:e2e": "node scripts/e2e.mjs",
+    "test:coverage": "jest --colors --injectGlobals --coverage test/unit",
     "eslint": "eslint \"{src,apps,libs,test}/**/*.ts\" --fix",
     "typecheck": "tsc --noEmit",
     "prepublishOnly": "pnpm run build",
@@ -50,8 +52,10 @@
     "viem": "^2.45.0"
   },
   "devDependencies": {
-    "@eslint/eslintrc": "^3.3.3",
     "@eslint/js": "^9.39.2",
+    "@foundry-rs/anvil": "1.6.0-rc1",
+    "@swc/core": "^1.15.10",
+    "@swc/jest": "^0.2.39",
     "@types/jest": "^30.0.0",
     "@types/node": "^25.0.10",
     "bunchee": "^6.9.4",
@@ -61,25 +65,26 @@
     "globals": "^17.1.0",
     "jest": "^30.2.0",
     "prettier": "^3.8.1",
-    "ts-jest": "^29.4.6",
     "tsdx": "^2.0.0",
     "typescript": "^5.9.3",
-    "typescript-eslint": "^8.53.1",
-    "vitest": "^4.0.18"
+    "typescript-eslint": "^8.53.1"
   },
   "jest": {
     "collectCoverageFrom": [
-      "**/*.(t|j)s"
+      "src/**/*.ts"
     ],
-    "coverageDirectory": "../coverage",
-    "coveragePathIgnorePatterns": [
-      "app.module.ts",
-      "main.ts",
-      ".*\\.module\\.ts",
-      ".*\\.dto\\.ts"
-    ],
+    "coverageDirectory": "coverage",
+    "coverageThreshold": {
+      "global": {
+        "branches": 90,
+        "functions": 95,
+        "lines": 95,
+        "statements": 95
+      }
+    },
     "moduleFileExtensions": [
       "js",
+      "cjs",
       "json",
       "ts"
     ],
@@ -87,7 +92,20 @@
     "testEnvironment": "node",
     "testRegex": "test/.*\\.test\\.ts$",
     "transform": {
-      "^.+\\.(t|j)s$": "ts-jest"
+      "^.+\\.ts$": [
+        "@swc/jest",
+        {
+          "jsc": {
+            "target": "es2022",
+            "parser": {
+              "syntax": "typescript"
+            }
+          },
+          "module": {
+            "type": "commonjs"
+          }
+        }
+      ]
     }
   },
   "engines": {

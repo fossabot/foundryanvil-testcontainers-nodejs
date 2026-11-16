@@ -1,4 +1,4 @@
-import { AnvilOptions, Order } from "../../src";
+import { AnvilOptions, CONTAINER_FILE_PATHS, Order } from "../../src";
 
 describe("StateOptions", () => {
   let options: AnvilOptions;
@@ -12,7 +12,7 @@ describe("StateOptions", () => {
     expect(options.entryPoint).toContain("--config-out");
     expect(
       options.entryPoint[options.entryPoint.indexOf("--config-out") + 1],
-    ).toBe("config.json");
+    ).toBe(CONTAINER_FILE_PATHS["--config-out"]);
   });
 
   it("withDumpState should set --dump-state flag", () => {
@@ -20,14 +20,14 @@ describe("StateOptions", () => {
     expect(options.entryPoint).toContain("--dump-state");
     expect(
       options.entryPoint[options.entryPoint.indexOf("--dump-state") + 1],
-    ).toBe("state.json");
+    ).toBe(CONTAINER_FILE_PATHS["--dump-state"]);
   });
 
   it("withInit should set --init flag", () => {
     options.state.withInit("genesis.json");
     expect(options.entryPoint).toContain("--init");
     expect(options.entryPoint[options.entryPoint.indexOf("--init") + 1]).toBe(
-      "genesis.json",
+      CONTAINER_FILE_PATHS["--init"],
     );
   });
 
@@ -36,7 +36,7 @@ describe("StateOptions", () => {
     expect(options.entryPoint).toContain("--load-state");
     expect(
       options.entryPoint[options.entryPoint.indexOf("--load-state") + 1],
-    ).toBe("state.json");
+    ).toBe(CONTAINER_FILE_PATHS["--load-state"]);
   });
 
   it("withMaxPersistedStates should set --max-persisted-states flag", () => {
@@ -66,16 +66,13 @@ describe("StateOptions", () => {
 
   it("withPruneHistory should set --prune-history flag with count", () => {
     options.state.withPruneHistory(100);
-    expect(options.entryPoint).toContain("--prune-history");
-    expect(
-      options.entryPoint[options.entryPoint.indexOf("--prune-history") + 1],
-    ).toBe("100");
+    expect(options.entryPoint).toContain("--prune-history=100");
   });
 
   it("withPruneHistory should toggle --prune-history flag without count", () => {
-    const freshOptions = new AnvilOptions(["anvil"]);
+    const freshOptions = new AnvilOptions();
     freshOptions.state.withPruneHistory();
-    expect(freshOptions.entryPoint).toEqual(["anvil", "--prune-history"]);
+    expect(freshOptions.entryPoint).toContain("--prune-history");
   });
 
   it("withStateInterval should set --state-interval flag", () => {
@@ -90,7 +87,7 @@ describe("StateOptions", () => {
     options.state.withState("state.json");
     expect(options.entryPoint).toContain("--state");
     expect(options.entryPoint[options.entryPoint.indexOf("--state") + 1]).toBe(
-      "state.json",
+      CONTAINER_FILE_PATHS["--state"],
     );
   });
 

@@ -6,10 +6,10 @@ describe("AnvilOptions", () => {
     expect(options.entryPoint).toEqual(["anvil", "--host", "0.0.0.0"]);
   });
 
-  it("should allow custom entrypoint in constructor", () => {
-    const customEntryPoint = ["custom-anvil", "--flag"];
-    const options = new AnvilOptions(customEntryPoint);
-    expect(options.entryPoint).toEqual(customEntryPoint);
+  it("should allow extra args", () => {
+    const options = new AnvilOptions();
+    options.withExtraArgs("--custom-flag");
+    expect(options.entryPoint).toContain("--custom-flag");
   });
 
   it("should return sub-options modules", () => {

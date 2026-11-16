@@ -43,25 +43,22 @@ describe("AccountOptions", () => {
 
   it("withRandomMnemonic should set --mnemonic-random flag with count", () => {
     options.account.withRandomMnemonic(24);
-    expect(options.entryPoint).toContain("--mnemonic-random");
-    expect(
-      options.entryPoint[options.entryPoint.indexOf("--mnemonic-random") + 1],
-    ).toBe("24");
+    expect(options.entryPoint).toContain("--mnemonic-random=24");
   });
 
   it("withRandomMnemonic should set --mnemonic-random flag without count", () => {
-    const freshOptions = new AnvilOptions(["anvil"]);
+    const freshOptions = new AnvilOptions();
     freshOptions.account.withRandomMnemonic();
-    expect(freshOptions.entryPoint).toEqual(["anvil", "--mnemonic-random"]);
+    expect(freshOptions.entryPoint).toContain("--mnemonic-random");
   });
 
   it("withMnemonicSeedUnsafe should set --mnemonic-seed-unsafe flag", () => {
-    options.account.withMnemonicSeedUnsafe("myseed");
+    options.account.withMnemonicSeedUnsafe(12345);
     expect(options.entryPoint).toContain("--mnemonic-seed-unsafe");
     expect(
       options.entryPoint[
         options.entryPoint.indexOf("--mnemonic-seed-unsafe") + 1
       ],
-    ).toBe("myseed");
+    ).toBe("12345");
   });
 });

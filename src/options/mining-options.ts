@@ -1,91 +1,61 @@
+import { groupFlags } from "../flags/registry";
 import {
-  AnvilOptions,
-  GetAnvilOptions,
-  SetFlagFunction,
-  ToggleFlagFunction,
-} from "./anvil-options";
+  OptionsGroup,
+  registerOptionsGroup,
+  StoreHandle,
+} from "./options-view";
+import { integerArg, Integerish, positiveNumberArg } from "./validators";
 
-export class MiningOptions {
-  private readonly setCliFlag: SetFlagFunction;
-  private readonly toggleCliFlag: ToggleFlagFunction;
-  private readonly getAnvilOptions: GetAnvilOptions;
-  constructor(
-    setFlagFunction: SetFlagFunction,
-    toggleFlagFunction: ToggleFlagFunction,
-    getAnvilOptions: GetAnvilOptions,
-  ) {
-    this.setCliFlag = setFlagFunction;
-    this.toggleCliFlag = toggleFlagFunction;
-    this.getAnvilOptions = getAnvilOptions;
+/** Flags of {@link MiningOptions}. */
+export const MINING_FLAGS = groupFlags("mining");
+
+/**
+ * Mining mode and genesis block (`.mining`). Modes are exclusive: automine
+ * (default), interval (`withBlockTime`) or on demand (`withNoMining`).
+ */
+export class MiningOptions extends OptionsGroup {
+  protected readonly groupName = "mining";
+
+  /** @internal */
+  constructor(store: StoreHandle) {
+    super(store);
   }
 
-  /**
-   * Sets the block time in seconds for interval mining.
-   * Sets the `--block-time` flag.
-   * @param seconds Block time in seconds.
-   * @example
-   * ```typescript
-   * const options: AnvilOptions = new AnvilOptions().mining.withBlockTime(1);
-   * ```
-   */
-  public withBlockTime(seconds: number): AnvilOptions {
-    this.setCliFlag("--block-time", seconds.toString());
-    return this.getAnvilOptions();
+  /** Interval mining: a block every `seconds` (fractions allowed) (`--block-time`). Conflicts with `withNoMining`. */
+  public withBlockTime(seconds: Integerish): this {
+    return this.setValue(
+      "--block-time",
+      positiveNumberArg("--block-time", seconds),
+    );
   }
 
-  /**
-   * Enable mixed mining.
-   * Sets the `--mixed-mining` flag.
-   * @param enabled Whether to enable. Defaults to true.
-   * @example
-   * ```typescript
-   * const options: AnvilOptions = new AnvilOptions().mining.withMixedMining();
-   * ```
-   */
-  public withMixedMining(enabled: boolean = true): AnvilOptions {
-    this.toggleCliFlag("--mixed-mining", enabled);
-    return this.getAnvilOptions();
+  /** Interval mining plus automine (`--mixed-mining`). Requires `withBlockTime`. */
+  public withMixedMining(enabled = true): this {
+    return this.toggleFlag("--mixed-mining", enabled);
   }
 
-  /**
-   * Disable auto and interval mining, and mine on demand instead.
-   * Sets the `--no-mining` flag.
-   * @param enabled Whether to enable. Defaults to true.
-   * @example
-   * ```typescript
-   * const options: AnvilOptions = new AnvilOptions().mining.withNoMining();
-   * ```
-   */
-  public withNoMining(enabled: boolean = true): AnvilOptions {
-    this.toggleCliFlag("--no-mining", enabled);
-    return this.getAnvilOptions();
+  /** Mine only on demand (`--no-mining`). Conflicts with `withBlockTime`. */
+  public withNoMining(enabled = true): this {
+    return this.toggleFlag("--no-mining", enabled);
   }
 
-  /**
-   * Sets the number of the genesis block.
-   * Sets the `--number` flag.
-   * @param number Block number.
-   * @example
-   * ```typescript
-   * const options: AnvilOptions = new AnvilOptions().mining.withBlockNumber(100);
-   * ```
-   */
-  public withBlockNumber(number: number): AnvilOptions {
-    this.setCliFlag("--number", number.toString());
-    return this.getAnvilOptions();
+  /** Back to automine: removes `--block-time`, `--mixed-mining`, `--no-mining`. */
+  public withAutoMining(): this {
+    return this.unsetFlags(["--block-time", "--mixed-mining", "--no-mining"]);
   }
 
-  /**
-   * Slots in an epoch.
-   * Sets the `--slots-in-an-epoch` flag.
-   * @param slots Number of slots. Defaults to 32.
-   * @example
-   * ```typescript
-   * const options: AnvilOptions = new AnvilOptions().mining.withSlotsInAnEpoch(32);
-   * ```
-   */
-  public withSlotsInAnEpoch(slots: number): AnvilOptions {
-    this.setCliFlag("--slots-in-an-epoch", slots.toString());
-    return this.getAnvilOptions();
+  /** Genesis block number (`--number`). */
+  public withBlockNumber(blockNumber: Integerish): this {
+    return this.setValue("--number", integerArg("--number", blockNumber));
+  }
+
+  /** Slots per epoch, drives `safe`/`finalized` (`--slots-in-an-epoch`, default 32). */
+  public withSlotsInAnEpoch(slots: Integerish): this {
+    return this.setValue(
+      "--slots-in-an-epoch",
+      integerArg("--slots-in-an-epoch", slots, { min: 1n }),
+    );
   }
 }
+
+registerOptionsGroup("mining", (store) => new MiningOptions(store));

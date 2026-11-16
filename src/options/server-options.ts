@@ -1,109 +1,69 @@
+import { groupFlags } from "../flags/registry";
 import {
-  AnvilOptions,
-  GetAnvilOptions,
-  SetFlagFunction,
-  ToggleFlagFunction,
-} from "./anvil-options";
+  OptionsGroup,
+  registerOptionsGroup,
+  StoreHandle,
+} from "./options-view";
+import { integerArg, Integerish, portArg, stringArg } from "./validators";
 
-export class ServerOptions {
-  private readonly setCliFlag: SetFlagFunction;
-  private readonly toggleCliFlag: ToggleFlagFunction;
-  private readonly getAnvilOptions: GetAnvilOptions;
-  constructor(
-    setFlagFunction: SetFlagFunction,
-    toggleFlagFunction: ToggleFlagFunction,
-    getAnvilOptions: GetAnvilOptions,
-  ) {
-    this.setCliFlag = setFlagFunction;
-    this.toggleCliFlag = toggleFlagFunction;
-    this.getAnvilOptions = getAnvilOptions;
+/** Flags of {@link ServerOptions}. */
+export const SERVER_FLAGS = groupFlags("server");
+
+/**
+ * RPC server (`.server`). The listen address is managed (`0.0.0.0`); the
+ * configured port is exposed and mapped to a random host port.
+ */
+export class ServerOptions extends OptionsGroup {
+  protected readonly groupName = "server";
+
+  /** @internal */
+  constructor(store: StoreHandle) {
+    super(store);
   }
 
-  /**
-   * Launch an ipc server at the given path or default path.
-   * Sets the `--ipc` flag.
-   * @param path Optional IPC path.
-   * @example
-   * ```typescript
-   * const options: AnvilOptions = new AnvilOptions().server.withIpc("/tmp/anvil.ipc");
-   * ```
-   */
-  public withIpc(path?: string): AnvilOptions {
-    if (path) {
-      this.setCliFlag("--ipc", path);
-    } else {
-      this.toggleCliFlag("--ipc", true);
-    }
-    return this.getAnvilOptions();
+  /** Port inside the container (`--port`, default 8545). */
+  public withPort(port: Integerish): this {
+    return this.setValue("--port", String(portArg("--port", port)));
   }
 
-  /**
-   * Number of threads to use. Specifying 0 defaults to the number of logical cores.
-   * Sets the `--threads` flag.
-   * @param threads Number of threads.
-   * @example
-   * ```typescript
-   * const options: AnvilOptions = new AnvilOptions().server.withThreads(0);
-   * ```
-   */
-  public withThreads(threads: number): AnvilOptions {
-    this.setCliFlag("--threads", threads.toString());
-    return this.getAnvilOptions();
+  /** IPC server at a container path, default `/tmp/anvil.ipc` (`--ipc`). */
+  public withIpc(path?: string): this {
+    return this.setValue(
+      "--ipc",
+      path === undefined ? null : stringArg("--ipc", path, "IPC path"),
+    );
   }
 
-  /**
-   * The cors `allow_origin` header.
-   * Sets the `--allow-origin` flag.
-   * @param origin Allow origin header. Defaults to *.
-   * @example
-   * ```typescript
-   * const options: AnvilOptions = new AnvilOptions().server.withAllowOrigin("*");
-   * ```
-   */
-  public withAllowOrigin(origin: string): AnvilOptions {
-    this.setCliFlag("--allow-origin", origin);
-    return this.getAnvilOptions();
+  /** Worker threads; 0 = logical cores (`--threads`). */
+  public withThreads(threads: Integerish): this {
+    return this.setValue("--threads", integerArg("--threads", threads));
   }
 
-  /**
-   * Path to the cache directory where persisted states are stored.
-   * Sets the `--cache-path` flag.
-   * @param path Cache path.
-   * @example
-   * ```typescript
-   * const options: AnvilOptions = new AnvilOptions().server.withCachePath("/tmp/anvil-cache");
-   * ```
-   */
-  public withCachePath(path: string): AnvilOptions {
-    this.setCliFlag("--cache-path", path);
-    return this.getAnvilOptions();
+  /** CORS allow-origin (`--allow-origin`, default `*`). Conflicts with `noCors`. */
+  public withAllowOrigin(origin: string): this {
+    return this.setValue(
+      "--allow-origin",
+      stringArg("--allow-origin", origin, "origin"),
+    );
   }
 
-  /**
-   * Disable CORS.
-   * Sets the `--no-cors` flag.
-   * @param enabled Whether to enable. Defaults to true.
-   * @example
-   * ```typescript
-   * const options: AnvilOptions = new AnvilOptions().server.noCors();
-   * ```
-   */
-  public noCors(enabled: boolean = true): AnvilOptions {
-    this.toggleCliFlag("--no-cors", enabled);
-    return this.getAnvilOptions();
+  /** Disable CORS (`--no-cors`). Conflicts with `withAllowOrigin`. */
+  public noCors(enabled = true): this {
+    return this.toggleFlag("--no-cors", enabled);
   }
 
-  /**
-   * Disable the default request body size limit.
-   * Sets the `--no-request-size-limit` flag.
-   * @param enabled Whether to enable. Defaults to true.
-   * @example
-   * ```typescript
-   * const options: AnvilOptions = new AnvilOptions().server.noRequestSizeLimit();
-   * ```
-   */
-  public noRequestSizeLimit(enabled: boolean = true): AnvilOptions {
-    this.toggleCliFlag("--no-request-size-limit", enabled);
-    return this.getAnvilOptions();
+  /** Disable the 2 MB request body limit (`--no-request-size-limit`). */
+  public noRequestSizeLimit(enabled = true): this {
+    return this.toggleFlag("--no-request-size-limit", enabled);
+  }
+
+  /** Container directory for persisted states (`--cache-path`). */
+  public withCachePath(path: string): this {
+    return this.setValue(
+      "--cache-path",
+      stringArg("--cache-path", path, "cache path"),
+    );
   }
 }
+
+registerOptionsGroup("server", (store) => new ServerOptions(store));

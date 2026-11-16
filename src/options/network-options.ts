@@ -1,45 +1,31 @@
+import { groupFlags } from "../flags/registry";
 import {
-  AnvilOptions,
-  GetAnvilOptions,
-  ToggleFlagFunction,
-} from "./anvil-options";
+  OptionsGroup,
+  registerOptionsGroup,
+  StoreHandle,
+} from "./options-view";
 
-export class NetworkOptions {
-  private readonly toggleCliFlag: ToggleFlagFunction;
-  private readonly getAnvilOptions: GetAnvilOptions;
-  constructor(
-    toggleFlagFunction: ToggleFlagFunction,
-    getAnvilOptions: GetAnvilOptions,
-  ) {
-    this.toggleCliFlag = toggleFlagFunction;
-    this.getAnvilOptions = getAnvilOptions;
+/** Flags of {@link NetworkOptions}. */
+export const NETWORK_FLAGS = groupFlags("network");
+
+/** Network features (`.network`). Optimism and Celo are mutually exclusive. */
+export class NetworkOptions extends OptionsGroup {
+  protected readonly groupName = "network";
+
+  /** @internal */
+  constructor(store: StoreHandle) {
+    super(store);
   }
 
-  /**
-   * Enable Celo network features.
-   * Sets the `--celo` flag.
-   * @param enabled Whether to enable. Defaults to true.
-   * @example
-   * ```typescript
-   * const options: AnvilOptions = new AnvilOptions().network.withCelo();
-   * ```
-   */
-  public withCelo(enabled: boolean = true): AnvilOptions {
-    this.toggleCliFlag("--celo", enabled);
-    return this.getAnvilOptions();
+  /** OP Stack features (`--optimism`); hardforks must then be {@link OpHardfork}s. */
+  public withOptimism(enabled = true): this {
+    return this.toggleFlag("--optimism", enabled);
   }
 
-  /**
-   * Enable Optimism network features.
-   * Sets the `--optimism` flag.
-   * @param enabled Whether to enable. Defaults to true.
-   * @example
-   * ```typescript
-   * const options: AnvilOptions = new AnvilOptions().network.withOptimism();
-   * ```
-   */
-  public withOptimism(enabled: boolean = true): AnvilOptions {
-    this.toggleCliFlag("--optimism", enabled);
-    return this.getAnvilOptions();
+  /** Celo features (`--celo`). */
+  public withCelo(enabled = true): this {
+    return this.toggleFlag("--celo", enabled);
   }
 }
+
+registerOptionsGroup("network", (store) => new NetworkOptions(store));

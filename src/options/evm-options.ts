@@ -1,232 +1,127 @@
+import { groupFlags } from "../flags/registry";
+import { Hardfork, OpHardfork } from "../types";
 import {
-  AnvilOptions,
-  GetAnvilOptions,
-  SetFlagFunction,
-  ToggleFlagFunction,
-} from "./anvil-options";
-import { Hardfork } from "../types";
+  OptionsGroup,
+  registerOptionsGroup,
+  StoreHandle,
+} from "./options-view";
+import { fail, integerArg, Integerish, U128_MAX } from "./validators";
 
-export class EvmOptions {
-  private readonly setCliFlag: SetFlagFunction;
-  private readonly toggleCliFlag: ToggleFlagFunction;
-  private readonly getAnvilOptions: GetAnvilOptions;
-  constructor(
-    setFlagFunction: SetFlagFunction,
-    toggleFlagFunction: ToggleFlagFunction,
-    getAnvilOptions: GetAnvilOptions,
-  ) {
-    this.setCliFlag = setFlagFunction;
-    this.toggleCliFlag = toggleFlagFunction;
-    this.getAnvilOptions = getAnvilOptions;
+/** Flags of {@link EvmOptions}. */
+export const EVM_FLAGS = groupFlags("evm");
+
+const HARDFORKS: readonly string[] = [
+  ...Object.values(Hardfork),
+  ...Object.values(OpHardfork),
+];
+
+/** Chain identity, fees, execution limits and tracing (`.evm`). Fees are in wei. */
+export class EvmOptions extends OptionsGroup {
+  protected readonly groupName = "evm";
+
+  /** @internal */
+  constructor(store: StoreHandle) {
+    super(store);
   }
 
   /**
-   * Sets the EVM hardfork to use.
-   * Sets the `--hardfork` flag.
-   * @param hardfork Hardfork name.
-   * @example
-   * ```typescript
-   * const options: AnvilOptions = new AnvilOptions().evm.withHardfork(Hardfork.London);
-   * ```
+   * EVM hardfork (`--hardfork`): a {@link Hardfork}, or an {@link OpHardfork}
+   * with `network.withOptimism()`. `Hardfork.Latest` removes the flag (anvil's
+   * default) because anvil rejects a literal `latest`.
    */
-  public withHardfork(hardfork: Hardfork): AnvilOptions {
-    this.setCliFlag("--hardfork", hardfork);
-    return this.getAnvilOptions();
+  public withHardfork(hardfork: Hardfork | OpHardfork): this {
+    if (!HARDFORKS.includes(hardfork)) {
+      fail(
+        "--hardfork",
+        `unknown hardfork ${JSON.stringify(hardfork)}; expected one of ${HARDFORKS.join(", ")}`,
+      );
+    }
+    return hardfork === Hardfork.Latest
+      ? this.unsetFlags(["--hardfork"])
+      : this.setValue("--hardfork", hardfork);
   }
 
-  /**
-   * Enables automatic impersonation on startup.
-   * Sets the `--auto-impersonate` flag.
-   * @param enabled Whether to enable. Defaults to true.
-   * @example
-   * ```typescript
-   * const options: AnvilOptions = new AnvilOptions().evm.autoImpersonate();
-   * ```
-   */
-  public autoImpersonate(enabled: boolean = true): AnvilOptions {
-    this.toggleCliFlag("--auto-impersonate", enabled);
-    return this.getAnvilOptions();
+  /** Chain id (`--chain-id`, default 31337 or the fork's). */
+  public withChainId(chainId: Integerish): this {
+    return this.setValue(
+      "--chain-id",
+      integerArg("--chain-id", chainId, { min: 1n }),
+    );
   }
 
-  /**
-   * The base fee in a block.
-   * Sets the `--block-base-fee-per-gas` flag.
-   * @param fee Base fee.
-   * @example
-   * ```typescript
-   * const options: AnvilOptions = new AnvilOptions().evm.withBlockBaseFeePerGas(1000000000n);
-   * ```
-   */
-  public withBlockBaseFeePerGas(fee: bigint | number): AnvilOptions {
-    this.setCliFlag("--block-base-fee-per-gas", fee.toString());
-    return this.getAnvilOptions();
+  /** Base fee per gas of every block (`--block-base-fee-per-gas`). */
+  public withBlockBaseFeePerGas(fee: Integerish): this {
+    return this.setValue(
+      "--block-base-fee-per-gas",
+      integerArg("--block-base-fee-per-gas", fee),
+    );
   }
 
-  /**
-   * The chain ID.
-   * Sets the `--chain-id` flag.
-   * @param chainId Chain ID.
-   * @example
-   * ```typescript
-   * const options: AnvilOptions = new AnvilOptions().evm.withChainId(1337);
-   * ```
-   */
-  public withChainId(chainId: number): AnvilOptions {
-    this.setCliFlag("--chain-id", chainId.toString());
-    return this.getAnvilOptions();
+  /** Gas price (`--gas-price`, u128). */
+  public withGasPrice(price: Integerish): this {
+    return this.setValue(
+      "--gas-price",
+      integerArg("--gas-price", price, { max: U128_MAX }),
+    );
   }
 
-  /**
-   * EIP-170: Contract code size limit in bytes.
-   * Sets the `--code-size-limit` flag.
-   * @param size Size in bytes.
-   * @example
-   * ```typescript
-   * const options: AnvilOptions = new AnvilOptions().evm.withCodeSizeLimit(32128);
-   * ```
-   */
-  public withCodeSizeLimit(size: number): AnvilOptions {
-    this.setCliFlag("--code-size-limit", size.toString());
-    return this.getAnvilOptions();
+  /** Don't enforce a minimum priority fee (`--disable-min-priority-fee`). */
+  public disableMinPriorityFee(enabled = true): this {
+    return this.toggleFlag("--disable-min-priority-fee", enabled);
   }
 
-  /**
-   * Disable the `call.gas_limit <= block.gas_limit` constraint.
-   * Sets the `--disable-block-gas-limit` flag.
-   * @param enabled Whether to enable. Defaults to true.
-   * @example
-   * ```typescript
-   * const options: AnvilOptions = new AnvilOptions().evm.disableBlockGasLimit();
-   * ```
-   */
-  public disableBlockGasLimit(enabled: boolean = true): AnvilOptions {
-    this.toggleCliFlag("--disable-block-gas-limit", enabled);
-    return this.getAnvilOptions();
+  /** Block gas limit (`--gas-limit`). Conflicts with `disableBlockGasLimit`. */
+  public withGasLimit(limit: Integerish): this {
+    return this.setValue("--gas-limit", integerArg("--gas-limit", limit));
   }
 
-  /**
-   * Disable EIP-170: Contract code size limit.
-   * Sets the `--disable-code-size-limit` flag.
-   * @param enabled Whether to enable. Defaults to true.
-   * @example
-   * ```typescript
-   * const options: AnvilOptions = new AnvilOptions().evm.disableCodeSizeLimit();
-   * ```
-   */
-  public disableCodeSizeLimit(enabled: boolean = true): AnvilOptions {
-    this.toggleCliFlag("--disable-code-size-limit", enabled);
-    return this.getAnvilOptions();
+  /** Drop `call.gas_limit <= block.gas_limit` (`--disable-block-gas-limit`). Conflicts with `withGasLimit`. */
+  public disableBlockGasLimit(enabled = true): this {
+    return this.toggleFlag("--disable-block-gas-limit", enabled);
   }
 
-  /**
-   * Disable the enforcement of a minimum suggested priority fee.
-   * Sets the `--disable-min-priority-fee` flag.
-   * @param enabled Whether to enable. Defaults to true.
-   * @example
-   * ```typescript
-   * const options: AnvilOptions = new AnvilOptions().evm.disableMinPriorityFee();
-   * ```
-   */
-  public disableMinPriorityFee(enabled: boolean = true): AnvilOptions {
-    this.toggleCliFlag("--disable-min-priority-fee", enabled);
-    return this.getAnvilOptions();
+  /** EIP-170 code size limit in bytes (`--code-size-limit`, default 0x6000). Conflicts with `disableCodeSizeLimit`. */
+  public withCodeSizeLimit(bytes: Integerish): this {
+    return this.setValue(
+      "--code-size-limit",
+      integerArg("--code-size-limit", bytes),
+    );
   }
 
-  /**
-   * The block gas limit.
-   * Sets the `--gas-limit` flag.
-   * @param limit Gas limit.
-   * @example
-   * ```typescript
-   * const options: AnvilOptions = new AnvilOptions().evm.withGasLimit(30000000n);
-   * ```
-   */
-  public withGasLimit(limit: bigint | number): AnvilOptions {
-    this.setCliFlag("--gas-limit", limit.toString());
-    return this.getAnvilOptions();
+  /** Disable EIP-170 (`--disable-code-size-limit`). Conflicts with `withCodeSizeLimit`. */
+  public disableCodeSizeLimit(enabled = true): this {
+    return this.toggleFlag("--disable-code-size-limit", enabled);
   }
 
-  /**
-   * The gas price.
-   * Sets the `--gas-price` flag.
-   * @param price Gas price.
-   * @example
-   * ```typescript
-   * const options: AnvilOptions = new AnvilOptions().evm.withGasPrice(20000000000n);
-   * ```
-   */
-  public withGasPrice(price: bigint | number): AnvilOptions {
-    this.setCliFlag("--gas-price", price.toString());
-    return this.getAnvilOptions();
+  /** Memory limit per EVM execution in bytes (`--memory-limit`). */
+  public withMemoryLimit(bytes: Integerish): this {
+    return this.setValue("--memory-limit", integerArg("--memory-limit", bytes));
   }
 
-  /**
-   * Disable the default create2 deployer.
-   * Sets the `--disable-default-create2-deployer` flag.
-   * @param enabled Whether to enable. Defaults to true.
-   * @example
-   * ```typescript
-   * const options: AnvilOptions = new AnvilOptions().evm.disableDefaultCreate2Deployer();
-   * ```
-   */
-  public disableDefaultCreate2Deployer(enabled: boolean = true): AnvilOptions {
-    this.toggleCliFlag("--disable-default-create2-deployer", enabled);
-    return this.getAnvilOptions();
+  /** Any sender can be impersonated without unlocking (`--auto-impersonate`). */
+  public autoImpersonate(enabled = true): this {
+    return this.toggleFlag("--auto-impersonate", enabled);
   }
 
-  /**
-   * Disable pool balance checks.
-   * Sets the `--disable-pool-balance-checks` flag.
-   * @param enabled Whether to enable. Defaults to true.
-   * @example
-   * ```typescript
-   * const options: AnvilOptions = new AnvilOptions().evm.disablePoolBalanceChecks();
-   * ```
-   */
-  public disablePoolBalanceChecks(enabled: boolean = true): AnvilOptions {
-    this.toggleCliFlag("--disable-pool-balance-checks", enabled);
-    return this.getAnvilOptions();
+  /** Disable the default CREATE2 deployer (`--disable-default-create2-deployer`). */
+  public disableDefaultCreate2Deployer(enabled = true): this {
+    return this.toggleFlag("--disable-default-create2-deployer", enabled);
   }
 
-  /**
-   * The memory limit per EVM execution in bytes.
-   * Sets the `--memory-limit` flag.
-   * @param limit Memory limit.
-   * @example
-   * ```typescript
-   * const options: AnvilOptions = new AnvilOptions().evm.withMemoryLimit(128 * 1024 * 1024);
-   * ```
-   */
-  public withMemoryLimit(limit: number): AnvilOptions {
-    this.setCliFlag("--memory-limit", limit.toString());
-    return this.getAnvilOptions();
+  /** Disable mempool balance checks (`--disable-pool-balance-checks`). */
+  public disablePoolBalanceChecks(enabled = true): this {
+    return this.toggleFlag("--disable-pool-balance-checks", enabled);
   }
 
-  /**
-   * Enable printing of traces for executed transactions and `eth_call` to stdout.
-   * Sets the `--print-traces` flag.
-   * @param enabled Whether to enable. Defaults to true.
-   * @example
-   * ```typescript
-   * const options: AnvilOptions = new AnvilOptions().evm.withPrintTraces();
-   * ```
-   */
-  public withPrintTraces(enabled: boolean = true): AnvilOptions {
-    this.toggleCliFlag("--print-traces", enabled);
-    return this.getAnvilOptions();
+  /** Print traces of transactions and `eth_call` to stdout (`--print-traces`). */
+  public withPrintTraces(enabled = true): this {
+    return this.toggleFlag("--print-traces", enabled);
   }
 
-  /**
-   * Enable steps tracing used for debug calls returning geth-style traces.
-   * Sets the `--steps-tracing` flag.
-   * @param enabled Whether to enable. Defaults to true.
-   * @example
-   * ```typescript
-   * const options: AnvilOptions = new AnvilOptions().evm.withStepsTracing();
-   * ```
-   */
-  public withStepsTracing(enabled: boolean = true): AnvilOptions {
-    this.toggleCliFlag("--steps-tracing", enabled);
-    return this.getAnvilOptions();
+  /** Geth-style step tracing for `debug_*` calls (`--steps-tracing`). */
+  public withStepsTracing(enabled = true): this {
+    return this.toggleFlag("--steps-tracing", enabled);
   }
 }
+
+registerOptionsGroup("evm", (store) => new EvmOptions(store));

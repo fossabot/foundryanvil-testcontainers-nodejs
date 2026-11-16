@@ -9,16 +9,13 @@ describe("ServerOptions", () => {
 
   it("withIpc should set --ipc flag with path", () => {
     options.server.withIpc("/tmp/anvil.ipc");
-    expect(options.entryPoint).toContain("--ipc");
-    expect(options.entryPoint[options.entryPoint.indexOf("--ipc") + 1]).toBe(
-      "/tmp/anvil.ipc",
-    );
+    expect(options.entryPoint).toContain("--ipc=/tmp/anvil.ipc");
   });
 
   it("withIpc should toggle --ipc flag without path", () => {
-    const freshOptions = new AnvilOptions(["anvil"]);
+    const freshOptions = new AnvilOptions();
     freshOptions.server.withIpc();
-    expect(freshOptions.entryPoint).toEqual(["anvil", "--ipc"]);
+    expect(freshOptions.entryPoint).toContain("--ipc");
   });
 
   it("withThreads should set --threads flag", () => {

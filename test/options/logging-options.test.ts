@@ -31,7 +31,7 @@ describe("LoggingOptions", () => {
 
   it("verboseLogs should set verbosity flag", () => {
     options.logs.verboseLogs(LogVerbosity.Three);
-    expect(options.entryPoint).toContain(LogVerbosity.Three);
+    expect(options.entryPoint).toContain("-vvv");
   });
 
   it("jsonLogFormat should toggle --json flag", () => {

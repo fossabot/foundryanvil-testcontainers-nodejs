@@ -1,410 +1,326 @@
-<!--suppress HtmlDeprecatedAttribute -->
 <div align="center">
 
 <h1>Foundry Anvil Testcontainers NodeJS Module</h1>
 
-<a href="https://github.com/hella-web3/foundryanvil-testcontainers-nodejs/actions/workflows/main.yml">
-    <img alt="Build+Test Status" src="https://github.com/hella-web3/foundryanvil-testcontainers-nodejs/actions/workflows/main.yml/badge.svg" />
-</a>
-
-<a href="https://www.npmjs.com/package/@hellaweb3/foundryanvil-testcontainers-nodejs">
-<img alt="npm version" src="https://img.shields.io/npm/v/%40hellaweb3%2Ffoundryanvil-testcontainers-nodejs" />
-</a>
-
-<a href="https://www.npmjs.com/package/@hellaweb3/foundryanvil-testcontainers-nodejs">
-<img alt="npm downloads" src="https://img.shields.io/npm/dy/%40hellaweb3%2Ffoundryanvil-testcontainers-nodejs" />
-</a>
+<a href="https://github.com/hella-web3/foundryanvil-testcontainers-nodejs/actions/workflows/main.yml"><img alt="Build+Test Status" src="https://github.com/hella-web3/foundryanvil-testcontainers-nodejs/actions/workflows/main.yml/badge.svg" /></a>
+<a href="https://www.npmjs.com/package/@hellaweb3/foundryanvil-testcontainers-nodejs"><img alt="npm version" src="https://img.shields.io/npm/v/%40hellaweb3%2Ffoundryanvil-testcontainers-nodejs" /></a>
+<a href="https://www.npmjs.com/package/@hellaweb3/foundryanvil-testcontainers-nodejs"><img alt="npm downloads" src="https://img.shields.io/npm/dy/%40hellaweb3%2Ffoundryanvil-testcontainers-nodejs" /></a>
 
 </div>
 
-## Description
+A [Testcontainers](https://testcontainers.com/) module that runs a
+[Foundry Anvil](https://getfoundry.sh/anvil/overview) node in Docker for tests.
 
-This repository provides a [Testcontainers](https://testcontainers.com/) module
-for Node.js to run a customized
-Anvil node in your E2E tests.
+- **Every anvil flag** through a fluent, type-safe API grouped like `anvil --help`.
+- **No misconfiguration**: values are validated immediately, conflicting flags
+  throw, dependencies are checked before start, and the command line renders
+  deterministically. The rules are verified against the real anvil binary.
+- **Reliable startup**: readiness probes JSON-RPC (any log settings); if anvil
+  exits, its own error output is reported immediately.
+- **Host files just work**: state snapshots, genesis and `--config-out` take
+  host paths and are copied in/out of the container.
+- **Chain-aware [viem](https://viem.sh) test client** plus helpers for
+  accounts, impersonation, mining, time, fees, snapshots, state and diagnostics.
 
-This Typescript module provides a Fluent API style method of configuring and
-starting the Anvil node. And during your
-test execution, the module provides
-a [viem test client](https://viem.sh/docs/clients/test) and
-streamlined helper methods to interact with the node.
+Default image: `ghcr.io/foundry-rs/foundry:v1.6.0-rc1` ·
+[Anvil reference](https://getfoundry.sh/anvil/reference/anvil)
 
-**Base image:** https://github.com/foundry-rs/foundry/blob/master/Dockerfile
-
-**Built using Anvil:** https://getfoundry.sh/anvil/reference/anvil
-
-**Foundry image:** `ghcr.io/foundry-rs/foundry:v1.6.0-rc1`
-
-**Custom image:** `hellaweb3/foundry-anvil:1.6`
-
-[Custom image DockerHub](https://hub.docker.com/repository/docker/hellaweb3/0.1-eth-anvil/general)
-
----
-
-## Usage
-
-Install the module:
+## Installation
 
 ```shell
 pnpm add -D @hellaweb3/foundryanvil-testcontainers-nodejs
 ```
 
-### Setup
+Requires Node.js ≥ 22 and a Docker-compatible runtime.
 
-Use the `AnvilContainer` module to start up a new Anvil testcontainer in your
-test suite.
-
-- Set up the container in a `beforeAll` hook.
-- Add an `afterAll` hook to stop the container.
+## Quick start
 
 ```ts
-describe("AnvilContainer", () => {
-  let container: StartedAnvilContainer;
+import { AnvilContainer, AnvilOptions, Hardfork, StartedAnvilContainer } from "@hellaweb3/foundryanvil-testcontainers-nodejs";
 
-  beforeAll(async () => {
-    const options = new AnvilOptions()
-      .logs.verboseLogs(LogVerbosity.Five)
-      .logs.jsonLogFormat()
-      .account.withRandomMnemonic()
-      .evm.autoImpersonate();
+let anvil: StartedAnvilContainer;
 
-    container = await new AnvilContainer(options).start();
-  }, 60000);
+beforeAll(async () => {
+  const options = new AnvilOptions()
+    .account.withAccounts(5).withBalance(1_000)
+    .evm.withChainId(1337).withHardfork(Hardfork.Cancun)
+    .mining.withNoMining()
+    .logs.quiet();
+  anvil = await new AnvilContainer(options).start();
+}, 120_000);
 
-  afterAll(async () => {
-    if (container) await container.stop();
-  });
+afterAll(() => anvil?.stop());
+
+it("sends Ether", async () => {
+  const [alice, bob] = await anvil.addresses();
+  expect((await anvil.sendEthTransaction(alice, bob, "1")).status).toBe("success");
+  expect(await anvil.client.getChainId()).toBe(1337);
 });
 ```
 
-### Test
+## `AnvilOptions`
 
-The `StartedAnvilContainer` provides a viem test client that you can use to
-interact with the node.
-
-- Access the viem test client via `container.client`.
-- Use container test helpers like `addresses()` and `sendEthTransaction()`.
+Groups: `.account`, `.evm`, `.fork`, `.mining`, `.logs`, `.network`,
+`.server`, `.state`. Every setter returns its group, every group exposes the
+other groups, and every group *is* an `AnvilOptions`:
 
 ```ts
-it("test send transaction", async () => {
-  let addresses = await container.addresses();
+const options: AnvilOptions = new AnvilOptions()
+  .account.withAccounts(5).withBalance(100)
+  .mining.withBlockTime(1).withMixedMining();
+options.toCommand(); // anvil --host 0.0.0.0 --accounts 5 --block-time 1 --balance 100 --mixed-mining
+```
 
-  const receipt: TransactionReceipt = await container.sendEthTransaction(
-    addresses[0],
-    addresses[1],
-    "1",
-  );
+Boolean setters take `enabled = true` (`false` removes the flag). Numeric
+setters accept `number | bigint`. Invalid input throws
+`AnvilConfigurationError`. Each group has `reset()`.
 
-  expect(receipt.status).toBe("success");
+### Account (`.account`)
+
+| Method | Flag | Notes |
+|---|---|---|
+| `account.withAccounts()` | `--accounts` (`-a`) | default 10 |
+| `account.withBalance()` | `--balance` | whole Ether, default 10000 |
+| `account.withDerivationPath()` | `--derivation-path` | default `m/44'/60'/0'/0/` |
+| `account.withMnemonic()` | `--mnemonic` (`-m`) | 12–24 words |
+| `account.withRandomMnemonic()` | `--mnemonic-random` | optional word count |
+| `account.withMnemonicSeedUnsafe()` | `--mnemonic-seed-unsafe` | `u64` seed |
+| `account.autoImpersonate()` | `--auto-impersonate` (`--auto-unlock`) | also `evm.autoImpersonate()` |
+
+One mnemonic source at a time.
+
+### EVM (`.evm`)
+
+| Method | Flag | Notes |
+|---|---|---|
+| `evm.withChainId()` | `--chain-id` (`--chain`) | default 31337 |
+| `evm.withHardfork()` | `--hardfork` | `Hardfork`, or `OpHardfork` with `--optimism`; `Hardfork.Latest` omits the flag (anvil rejects `latest`) |
+| `evm.withBlockBaseFeePerGas()` | `--block-base-fee-per-gas` (`--base-fee`) | wei |
+| `evm.withGasPrice()` | `--gas-price` | wei |
+| `evm.disableMinPriorityFee()` | `--disable-min-priority-fee` (`--no-priority-fee`) | |
+| `evm.withGasLimit()` | `--gas-limit` (`--block-gas-limit`) | |
+| `evm.disableBlockGasLimit()` | `--disable-block-gas-limit` (`--no-gas-limit`) | |
+| `evm.withCodeSizeLimit()` | `--code-size-limit` | bytes |
+| `evm.disableCodeSizeLimit()` | `--disable-code-size-limit` | |
+| `evm.withMemoryLimit()` | `--memory-limit` | bytes |
+| `evm.autoImpersonate()` | `--auto-impersonate` | |
+| `evm.disableDefaultCreate2Deployer()` | `--disable-default-create2-deployer` (`--no-create2`) | |
+| `evm.disablePoolBalanceChecks()` | `--disable-pool-balance-checks` | |
+| `evm.withPrintTraces()` | `--print-traces` (`--enable-trace-printing`) | |
+| `evm.withStepsTracing()` | `--steps-tracing` (`--tracing`) | geth-style `debug_*` traces |
+
+### Fork (`.fork`)
+
+All options require `fork.withForkUrl()` (checked at build time, any call
+order). The URL is resolved inside the container — use
+`http://host.docker.internal:<port>` for a node on the host.
+
+| Method | Flag | Notes |
+|---|---|---|
+| `fork.withForkUrl()` | `--fork-url` (`-f`, `--rpc-url`) | `url@block` or 2nd arg set the block |
+| `fork.withForkBlockNumber()` | `--fork-block-number` | negative = relative to latest |
+| `fork.withForkTransactionHash()` | `--fork-transaction-hash` | |
+| `fork.withForkChainId()` | `--fork-chain-id` | offline start; needs block number or tx hash |
+| `fork.withForkHeader()` / `fork.withForkHeaders()` | `--fork-header` | add / replace `Name: value` |
+| `fork.withForkRetryBackoff()` | `--fork-retry-backoff` | ms |
+| `fork.withRetries()` | `--retries` | default 5 |
+| `fork.withTimeout()` | `--timeout` | ms, default 45000 |
+| `fork.withComputeUnitsPerSecond()` | `--compute-units-per-second` (`--cups`) | default 330 |
+| `fork.noRateLimit()` | `--no-rate-limit` (`--no-rpc-rate-limit`) | |
+| `fork.noStorageCaching()` | `--no-storage-caching` | |
+
+```ts
+new AnvilOptions().fork.withForkUrl(`https://mainnet.infura.io/v3/${KEY}`, 18_000_000).withRetries(10);
+```
+
+### Mining (`.mining`)
+
+| Method | Flag | Notes |
+|---|---|---|
+| `mining.withBlockTime()` | `--block-time` (`-b`, `--blockTime`) | seconds, fractions allowed |
+| `mining.withMixedMining()` | `--mixed-mining` | interval + automine; needs block time |
+| `mining.withNoMining()` | `--no-mining` (`--no-mine`) | on demand only |
+| `mining.withAutoMining()` | – | back to automine (removes the above) |
+| `mining.withBlockNumber()` | `--number` | genesis block number |
+| `mining.withSlotsInAnEpoch()` | `--slots-in-an-epoch` | default 32 |
+
+### Logs (`.logs`)
+
+| Method | Flag | Notes |
+|---|---|---|
+| `logs.verboseLogs()` | `--verbosity` (`-v` … `-vvvvv`) | `LogVerbosity` or 1–5 |
+| `logs.quiet()` | `--quiet` (`-q`) | readiness doesn't need logs |
+| `logs.withColor()` | `--color` | `Color.Auto/Always/Never` |
+| `logs.jsonLogFormat()` | `--json` | |
+| `logs.withMarkdownFormat()` | `--md` | |
+| `logs.disableConsoleLog()` | `--disable-console-log` (`--no-console-log`) | |
+
+### Network (`.network`)
+
+| Method | Flag | Notes |
+|---|---|---|
+| `network.withOptimism()` | `--optimism` | hardforks must be `OpHardfork` |
+| `network.withCelo()` | `--celo` | |
+
+### Server (`.server`)
+
+| Method | Flag | Notes |
+|---|---|---|
+| `server.withPort()` | `--port` (`-p`) | container port, mapped automatically; default 8545 |
+| `server.withIpc()` | `--ipc` (`--ipcpath`) | container path, default `/tmp/anvil.ipc` |
+| `server.withThreads()` | `--threads` (`-j`, `--jobs`) | 0 = logical cores |
+| `server.withAllowOrigin()` | `--allow-origin` | default `*` |
+| `server.noCors()` | `--no-cors` | |
+| `server.noRequestSizeLimit()` | `--no-request-size-limit` | |
+| `server.withCachePath()` | `--cache-path` | container path |
+
+`--host` is managed by the container (always `0.0.0.0`).
+
+### State (`.state`)
+
+| Method | Flag | Notes |
+|---|---|---|
+| `state.withLoadState()` | `--load-state` | host file copied in |
+| `state.withDumpState()` | `--dump-state` | copied to the host on stop |
+| `state.withState()` | `--state` | load if present + dump |
+| `state.withInit()` | `--init` | `genesis.json` |
+| `state.withConfigOut()` | `--config-out` | resolved config incl. keys, copied out after start |
+| `state.withStateInterval()` | `--state-interval` (`-s`) | needs a dump target |
+| `state.withPreserveHistoricalStates()` | `--preserve-historical-states` | needs a dump target |
+| `state.withMaxPersistedStates()` | `--max-persisted-states` | |
+| `state.withPruneHistory()` | `--prune-history` | optional in-memory count |
+| `state.withTransactionBlockKeeper()` | `--transaction-block-keeper` | |
+| `state.withTimestamp()` | `--timestamp` | seconds, bigint or `Date` |
+| `state.withOrder()` | `--order` | `Order.Fees` (default) / `Order.Fifo` |
+
+File options take a host path (copied in before start / out after start or
+stop) or `containerPath("/abs")` for files already in the image. Dumps on exit
+need a graceful stop, which `StartedAnvilContainer.stop()` does.
+
+```ts
+new AnvilOptions().state.withState("./.anvil/state.json").withStateInterval(30);
+```
+
+### Rules
+
+Conflicts throw when the second flag is set; dependencies are checked by
+`validate()` / `build()` / `start()`.
+
+| Rule | Flags |
+|---|---|
+| One mnemonic source | `--mnemonic` ⟂ `--mnemonic-random` ⟂ `--mnemonic-seed-unsafe` |
+| One mining mode | `--no-mining` ⟂ `--block-time`; `--mixed-mining` → `--block-time` |
+| State sources | `--state` ⟂ `--init` / `--dump-state` / `--load-state`; `--init` ⟂ `--dump-state` / `--load-state` / `--preserve-historical-states` |
+| Dump helpers | `--state-interval`, `--preserve-historical-states` → `--dump-state` or `--state` |
+| History | `--max-persisted-states` ⟂ `--prune-history` |
+| CORS | `--no-cors` ⟂ `--allow-origin` |
+| Fork | fork options → `--fork-url`; `--fork-block-number` ⟂ `--fork-transaction-hash`; `--fork-chain-id` → block number or tx hash |
+| Limits | `--gas-limit` ⟂ `--disable-block-gas-limit`; `--code-size-limit` ⟂ `--disable-code-size-limit` |
+| Logging | `--quiet` ⟂ `-v` / `--json`; `--json` ⟂ `--color` / `--md` |
+| Networks | `--celo` ⟂ `--optimism`; `OpHardfork` → `--optimism`; `Hardfork` ⟂ `--optimism` |
+
+Three rules are deliberately stricter than anvil (which accepts but ignores
+them): the two dump helpers without a target, and `--mixed-mining` with
+`--no-mining`. See `FlagSpec.stricterThanAnvil`; `ANVIL_FLAGS` exposes the
+whole registry.
+
+### Composition and inspection
+
+| Method | Description |
+|---|---|
+| `clone()` | independent deep copy |
+| `apply(...presets)` | run `(o: AnvilOptions) => void` presets |
+| `unset(...flags)` | remove flags, e.g. to swap a conflicting one |
+| `withExtraArgs(...args)` | raw args for newer anvil flags (known flags rejected) |
+| `validate()` / `problems()` | throw / list dependency problems |
+| `build()` | validated immutable `AnvilConfiguration` |
+| `toArgs()` / `entryPoint` / `toCommand()` / `toJSON()` | rendered command |
+| `has()` / `get()` / `flags()` / `root()` | inspection |
+
+```ts
+const base = () => new AnvilOptions().account.withAccounts(3);
+const ci = base().apply((o) => o.mining.withBlockTime(1));
+const random = ci.clone().unset("--mnemonic").account.withRandomMnemonic();
+```
+
+Rendering is canonical (`--help` order), uses `--flag=value` for optional
+values and values starting with `-`, and repeats multi-value flags.
+
+## `AnvilContainer`
+
+Extends `GenericContainer` (all builders available, e.g. `withStartupTimeout`
+for slow forks).
+
+| Member | Description |
+|---|---|
+| `new AnvilContainer(options?, image?)` | defaults: anvil defaults, `DEFAULT_ANVIL_IMAGE` |
+| `withArtifactsDir(dir)` | base dir for `contractAbi()` / `contractBytecode()` (default `<cwd>/test/artifacts`) |
+| `prepare()` | validate + apply to the container without starting |
+| `start()` | start and wait for JSON-RPC; throws `AnvilConfigurationError` / `AnvilStartupError` |
+
+## `StartedAnvilContainer`
+
+| Area | Members |
+|---|---|
+| Connection | `rpcUrl`, `wsUrl`, `chainId`, `chain`, `client`, `configuration`, `rpc(method, params)` |
+| Accounts | `addresses()`, `accounts()` (with keys), `getBalance()`, `setBalance()`, `setBalanceEther()`, `impersonate()`, `stopImpersonating()`, `withImpersonation()`, `setAutoImpersonate()` |
+| Transactions | `sendEthTransaction()`, `deployContract()` |
+| Mining & time | `mine()`, `getAutomine()`, `setAutomine()`, `setIntervalMining()`, `increaseTime()`, `setNextBlockTimestamp()` |
+| Fees & limits | `setMinGasPrice()`, `setNextBlockBaseFeePerGas()`, `setBlockGasLimit()` |
+| State | `snapshot()`, `revert()`, `withSnapshot()`, `checkpoint()`, `dumpState()`, `dumpStateToFile()`, `loadState()`, `loadStateFromFile()` |
+| Diagnostics | `nodeInfo()`, `metadata()`, `setLoggingEnabled()`, `logText()` |
+| Artifacts | `contractAbi()`, `contractBytecode()` (also `loadContractAbi` / `loadContractBytecode`) |
+| Lifecycle | `stop()` – graceful when a dump is configured, copies it to the host |
+
+`client` is a viem test client bound to the node's actual chain id, with no
+response caching and 100 ms polling.
+
+```ts
+await anvil.withSnapshot(async (client) => {
+  await anvil.setBalanceEther(whale, "1000");
+  await anvil.withImpersonation(whale, () =>
+    client.sendTransaction({ account: whale, to: alice, value: parseEther("10") }));
+  await anvil.increaseTime(7 * 24 * 3600);
+  await anvil.mine();
 });
 ```
 
----
+## Fast test suites
 
-## Scripts
-
-| Script           | Description                       |
-|------------------|-----------------------------------|
-| `pnpm dev`       | Start development mode with watch |
-| `pnpm build`     | Build for production              |
-| `pnpm test`      | Run tests                         |
-| `pnpm eslint`    | Lint code                         |
-| `pnpm typecheck` | Run TypeScript type checking      |
-
----
-
-### Forking Options
-
-Configure the Anvil node to fork from a remote RPC URL:
+Starting a container takes about a second; reverting a snapshot takes about a
+millisecond. Start **one node per test file** and isolate tests with
+`checkpoint()`, which can be restored any number of times:
 
 ```ts
-const options = new AnvilOptions().fork
-  .withForkUrl(`https://mainnet.infura.io/v3/${INFURA_KEY}`)
-  .fork.withForkBlockNumber(17500000);
+let anvil: StartedAnvilContainer;
+let base: { restore(): Promise<void> };
 
-const container = await new AnvilContainer(options).start();
+beforeAll(async () => {
+  anvil = await new AnvilContainer(new AnvilOptions().logs.quiet()).start();
+  // deploy fixtures here, then:
+  base = await anvil.checkpoint();
+});
+afterEach(() => base.restore());
+afterAll(() => anvil.stop());
 ```
 
----
+- `withSnapshot(fn)` isolates a single block of code the same way.
+- Jest workers run test files in parallel, each with its own node.
+- Readiness is detected within ~50 ms of anvil listening; `accounts()` derives
+  keys natively in milliseconds.
+- `loadState` / `withLoadState` restore prepared fixtures far faster than
+  replaying deployments.
 
-## Configuration Options
+## Errors
 
-The `AnvilContainer` can be highly customized using the `AnvilOptions` class.
-Options are organized into logical modules to make configuration intuitive.
+| Error | When | Fields |
+|---|---|---|
+| `AnvilConfigurationError` | invalid value, conflict, unmet dependency, missing host file | `flag`, `relatedFlags` |
+| `AnvilStartupError` | anvil exited / not ready / Docker failure | `command`, `logs`, `cause` |
 
-Review the [Foundry Docs](https://www.getfoundry.sh/reference/anvil/anvil) for
-more details.
+## Contributing
 
-### Account Options
+Scripts, the e2e suite (`pnpm test:e2e`, or `--no-docker` for local testing)
+and release steps: see [CONTRIBUTING.md](./CONTRIBUTING.md).
 
-Configure development accounts, balances, and mnemonics.
-
-* **Use-case**: Setup specific pre-funded accounts or use a known mnemonic to
-  ensure predictable addresses across test runs.
-
-| Option                                 | Description                                                  |
-|----------------------------------------|--------------------------------------------------------------|
-| `withAccounts(count: number)`          | Sets the number of dev accounts to generate and configure.   |
-| `withBalance(balance: number)`         | Sets the balance of every dev account in Ether.              |
-| `withDerivationPath(path: string)`     | Sets the derivation path of the child key to be derived.     |
-| `withMnemonic(mnemonic: string)`       | Sets the BIP39 mnemonic phrase used for generating accounts. |
-| `withRandomMnemonic(words?: number)`   | Automatically generates a BIP39 mnemonic phrase.             |
-| `withMnemonicSeedUnsafe(seed: string)` | Generates a BIP39 mnemonic phrase from a given seed.         |
-
-```ts
-const options = new AnvilOptions().account
-  .withAccounts(10)
-  .account.withBalance(1000)
-  .account.withRandomMnemonic();
-
-const container = await new AnvilContainer(options).start();
-```
-
-### EVM Options
-
-Fine-tune the EVM behavior, gas limits, and hardforks.
-
-* **Use-case**: Test contract deployments that exceed default code size limits
-  or simulate specific Ethereum hardforks.
-
-| Option                                             | Description                                                                   |
-|----------------------------------------------------|-------------------------------------------------------------------------------|
-| `withHardfork(hardfork: Hardfork)`                 | Sets the EVM hardfork to use.                                                 |
-| `autoImpersonate(enabled?: boolean)`               | Enables automatic impersonation on startup.                                   |
-| `withBlockBaseFeePerGas(fee: bigint \| number)`    | Sets the base fee in a block.                                                 |
-| `withChainId(chainId: number)`                     | Sets the chain ID.                                                            |
-| `withCodeSizeLimit(size: number)`                  | EIP-170: Contract code size limit in bytes.                                   |
-| `disableBlockGasLimit(enabled?: boolean)`          | Disable the `call.gas_limit <= block.gas_limit` constraint.                   |
-| `disableCodeSizeLimit(enabled?: boolean)`          | Disable EIP-170: Contract code size limit.                                    |
-| `disableMinPriorityFee(enabled?: boolean)`         | Disable the enforcement of a minimum suggested priority fee.                  |
-| `withGasLimit(limit: bigint \| number)`            | Sets the block gas limit.                                                     |
-| `withGasPrice(price: bigint \| number)`            | Sets the gas price.                                                           |
-| `disableDefaultCreate2Deployer(enabled?: boolean)` | Disable the default create2 deployer.                                         |
-| `disablePoolBalanceChecks(enabled?: boolean)`      | Disable pool balance checks.                                                  |
-| `withMemoryLimit(limit: number)`                   | The memory limit per EVM execution in bytes.                                  |
-| `withPrintTraces(enabled?: boolean)`               | Enable printing of traces for executed transactions and `eth_call` to stdout. |
-| `withStepsTracing(enabled?: boolean)`              | Enable steps tracing used for debug calls returning geth-style traces.        |
-
-```ts
-const options = new AnvilOptions().evm
-  .withHardfork(Hardfork.London)
-  .evm.withCodeSizeLimit(32128)
-  .evm.autoImpersonate();
-```
-
-### Forking Options
-
-Fork from a remote RPC endpoint to test against real-world state.
-
-* **Use-case**: Integration tests that interact with existing protocols (e.g.,
-  Uniswap, Aave) on Mainnet or L2s.
-
-| Option                                     | Description                                                                      |
-|--------------------------------------------|----------------------------------------------------------------------------------|
-| `withComputeUnitsPerSecond(cups: number)`  | Sets the number of assumed available compute units per second for this provider. |
-| `withForkUrl(url: string)`                 | Fetch state over a remote endpoint instead of starting from an empty state.      |
-| `withForkBlockNumber(blockNumber: number)` | Fetch state from a specific block number over a remote endpoint.                 |
-| `withForkChainId(chainId: number)`         | Specify chain id to skip fetching it from remote endpoint.                       |
-| `withForkHeader(header: string)`           | Headers to use for the rpc client.                                               |
-| `withForkRetryBackoff(backoff: number)`    | Initial retry backoff on encountering errors.                                    |
-| `withForkTransactionHash(hash: string)`    | Fetch state from after a specific transaction hash has been applied.             |
-| `noRateLimit(enabled?: boolean)`           | Disables rate limiting for this node's provider.                                 |
-| `noStorageCaching(enabled?: boolean)`      | Explicitly disables the use of RPC caching.                                      |
-| `withRetries(retries: number)`             | Number of retry requests for spurious networks.                                  |
-| `withTimeout(timeout: number)`             | Timeout in ms for requests sent to remote JSON-RPC server.                       |
-
-```ts
-const options = new AnvilOptions().fork
-  .withForkUrl("https://mainnet.infura.io/v3/YOUR_KEY")
-  .fork.withForkBlockNumber(18000000);
-```
-
-### Mining Options
-
-Control block production and mining behavior.
-
-* **Use-case**: Simulate a real-time mining interval to test frontend polling
-  logic or time-dependent contract features.
-
-| Option                               | Description                                                   |
-|--------------------------------------|---------------------------------------------------------------|
-| `withBlockTime(seconds: number)`     | Sets the block time in seconds for interval mining.           |
-| `withMixedMining(enabled?: boolean)` | Enable mixed mining.                                          |
-| `withNoMining(enabled?: boolean)`    | Disable auto and interval mining, and mine on demand instead. |
-| `withBlockNumber(number: number)`    | Sets the number of the genesis block.                         |
-| `withSlotsInAnEpoch(slots: number)`  | Slots in an epoch.                                            |
-
-```ts
-const options = new AnvilOptions().mining
-  .withBlockTime(1) // Mine a block every second
-  .mining.withMixedMining();
-```
-
-### Logging Options
-
-Adjust output verbosity and format for better debugging.
-
-* **Use-case**: Enable JSON logging for automated log analysis or increase
-  verbosity to debug failing transactions.
-
-| Option                                    | Description                                              |
-|-------------------------------------------|----------------------------------------------------------|
-| `withColor(color: Color)`                 | The color of the log messages.                           |
-| `withMarkdownFormat(enabled?: boolean)`   | Format log messages as Markdown.                         |
-| `quiet(enabled?: boolean)`                | Do not print log messages.                               |
-| `verboseLogs(logVerbosity: LogVerbosity)` | Sets the verbosity level of the log messages.            |
-| `jsonLogFormat(enabled?: boolean)`        | Format log messages as JSON.                             |
-| `disableConsoleLog(enabled?: boolean)`    | Disable printing of `console.log` invocations to stdout. |
-
-```ts
-const options = new AnvilOptions().logs
-  .verboseLogs(LogVerbosity.Three)
-  .logs.jsonLogFormat();
-```
-
-### Network Options
-
-Enable features specific to certain networks like Celo or Optimism.
-
-* **Use-case**: E2E tests for cross-chain applications or protocols deployed on
-  Optimism or Celo.
-
-| Option                            | Description                       |
-|-----------------------------------|-----------------------------------|
-| `withCelo(enabled?: boolean)`     | Enable Celo network features.     |
-| `withOptimism(enabled?: boolean)` | Enable Optimism network features. |
-
-```ts
-const options = new AnvilOptions().network
-  .withOptimism();
-```
-
-### Server Options
-
-Configure the RPC server settings, CORS, and IPC.
-
-* **Use-case**: Testing IPC connections or adjusting CORS settings for local web
-  application development.
-
-| Option                                  | Description                                                    |
-|-----------------------------------------|----------------------------------------------------------------|
-| `withIpc(path?: string)`                | Launch an ipc server at the given path or default path.        |
-| `withThreads(threads: number)`          | Number of threads to use.                                      |
-| `withAllowOrigin(origin: string)`       | The cors `allow_origin` header.                                |
-| `withCachePath(path: string)`           | Path to the cache directory where persisted states are stored. |
-| `noCors(enabled?: boolean)`             | Disable CORS.                                                  |
-| `noRequestSizeLimit(enabled?: boolean)` | Disable the default request body size limit.                   |
-
-```ts
-const options = new AnvilOptions().server
-  .withAllowOrigin("*")
-  .server.noCors();
-```
-
-### State Options
-
-Manage chain state, persistence, and snapshots.
-
-* **Use-case**: Speed up test suites by loading a pre-configured state instead
-  of re-deploying contracts every time.
-
-| Option                                            | Description                                                      |
-|---------------------------------------------------|------------------------------------------------------------------|
-| `withConfigOut(path: string)`                     | Writes output of `anvil` as json to user-specified file.         |
-| `withDumpState(path: string)`                     | Dump the state and block environment of chain on exit.           |
-| `withInit(path: string)`                          | Initialize the genesis block with the given `genesis.json` file. |
-| `withLoadState(path: string)`                     | Initialize the chain from a previously saved state snapshot.     |
-| `withMaxPersistedStates(count: number)`           | Max number of states to persist on disk.                         |
-| `withOrder(order: Order)`                         | How transactions are sorted in the mempool.                      |
-| `withPreserveHistoricalStates(enabled?: boolean)` | Preserve historical state snapshots when dumping the state.      |
-| `withPruneHistory(count?: number)`                | Don't keep full chain history.                                   |
-| `withStateInterval(seconds: number)`              | Interval in seconds at which the state is to be dumped to disk.  |
-| `withState(path: string)`                         | Alias for both --load-state and --dump-state.                    |
-| `withTimestamp(timestamp: number)`                | The timestamp of the genesis block.                              |
-| `withTransactionBlockKeeper(count: number)`       | Number of blocks with transactions to keep in memory.            |
-
-```ts
-const options = new AnvilOptions().state
-  .withLoadState("path/to/state.json")
-  .state.withDumpState("path/to/new-state.json");
-```
-
----
-
-## Tools
-
-- **[Bunchee](https://github.com/huozhi/bunchee)** - Zero-config bundler for npm
-  packages
-- **[Jest](https://jestjs.io/)** - Testing framework
-
-## Module Formats
-
-This library exports both ESM and CommonJS formats, with full TypeScript
-support:
-
-- `dist/index.js` - ESM
-- `dist/index.cjs` - CommonJS
-- `dist/index.d.ts` - TypeScript declarations
-
-## Publishing
-
-```bash
-# Build the package
-pnpm run build
-
-# Publish to npm
-np --no-publish
-
-# Trigger GitHub release workflow
-git push origin --tags
-```
-
-This will trigger the release.yml and publish.yml workflows.
-
----
-
-## Contracts
-
-WETH: https://etherscan.io/address/0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2#code
-
----
-
-### Using a Custom Docker Image
-
-**Build the docker image:**
-
-```shell
-docker build -t hellaweb3/foundry-anvil:1.6 .
-```
-
-**Run the docker image:**
-
-```shell
-docker run -p 8545:8545 hellaweb3/foundry-anvil:1.6
-```
-
-**Push the docker image:**
-
-```shell
-docker push hellaweb3/foundry-anvil:1.6
-```
-
-**Use cast to test the connection:**
-
-```shell
-cast block-number
-```
-
-**Use script to test the connection:**
-
-```shell
-node ./scripts/get-block-number.ts
-```
-
-## Maintainers
-
-Maintained by [Hella Labs](https://hella.website/).
-
-## License
-
-MIT
+Maintained by [Hella Labs](https://hella.website/) · MIT

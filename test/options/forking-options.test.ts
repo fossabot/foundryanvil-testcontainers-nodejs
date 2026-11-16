@@ -62,13 +62,14 @@ describe("ForkingOptions", () => {
   });
 
   it("withForkTransactionHash should set --fork-transaction-hash flag", () => {
-    options.fork.withForkTransactionHash("0x123");
+    const hash = `0x${"ab".repeat(32)}` as const;
+    options.fork.withForkTransactionHash(hash);
     expect(options.entryPoint).toContain("--fork-transaction-hash");
     expect(
       options.entryPoint[
         options.entryPoint.indexOf("--fork-transaction-hash") + 1
       ],
-    ).toBe("0x123");
+    ).toBe(hash);
   });
 
   it("noRateLimit should toggle --no-rate-limit flag", () => {

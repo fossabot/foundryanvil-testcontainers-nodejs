@@ -1,194 +1,169 @@
+import * as fs from "node:fs";
+import * as path from "node:path";
+import { groupFlags } from "../flags/registry";
+import { FilePath, isContainerPath, Order } from "../types";
 import {
-  AnvilOptions,
-  GetAnvilOptions,
-  SetFlagFunction,
-  ToggleFlagFunction,
-} from "./anvil-options";
-import { Order } from "../types";
+  OptionsGroup,
+  registerOptionsGroup,
+  StoreHandle,
+} from "./options-view";
+import {
+  enumArg,
+  integerArg,
+  Integerish,
+  stringArg,
+  timestampArg,
+} from "./validators";
 
-export class StateOptions {
-  private readonly setCliFlag: SetFlagFunction;
-  private readonly toggleCliFlag: ToggleFlagFunction;
-  private readonly getAnvilOptions: GetAnvilOptions;
-  constructor(
-    setFlagFunction: SetFlagFunction,
-    toggleFlagFunction: ToggleFlagFunction,
-    getAnvilOptions: GetAnvilOptions,
-  ) {
-    this.setCliFlag = setFlagFunction;
-    this.toggleCliFlag = toggleFlagFunction;
-    this.getAnvilOptions = getAnvilOptions;
+/** Flags of {@link StateOptions}. */
+export const STATE_FLAGS = groupFlags("state");
+
+/** Container paths used for host files (directly under `/tmp`, writable by any user). */
+export const CONTAINER_FILE_PATHS = Object.freeze({
+  "--load-state": "/tmp/anvil-load-state.json",
+  "--init": "/tmp/anvil-genesis.json",
+  "--dump-state": "/tmp/anvil-dump-state.json",
+  "--state": "/tmp/anvil-state.json",
+  "--config-out": "/tmp/anvil-config-out.json",
+} as const);
+
+type FileFlag = keyof typeof CONTAINER_FILE_PATHS;
+type Transfer = "import" | "export-on-start" | "export-on-stop" | "state";
+
+/**
+ * State persistence, genesis, history and mempool order (`.state`).
+ *
+ * File options take a {@link FilePath}: a plain string is a **host** path,
+ * copied into the container before start (inputs) or back after start/stop
+ * (outputs); `containerPath("/abs")` is used verbatim. Dumps on exit need a
+ * graceful stop, which {@link StartedAnvilContainer.stop} performs.
+ *
+ * @example new AnvilOptions().state.withState("./.anvil/state.json").withStateInterval(30)
+ */
+export class StateOptions extends OptionsGroup {
+  protected readonly groupName = "state";
+
+  /** @internal */
+  constructor(store: StoreHandle) {
+    super(store);
+  }
+
+  /** Start from a state snapshot (`--load-state`); the host file must exist. Conflicts with `withInit`, `withState`. */
+  public withLoadState(file: FilePath): this {
+    return this.file("--load-state", file, "import");
+  }
+
+  /** Genesis from a `genesis.json` (`--init`). Conflicts with the load/dump/state options. */
+  public withInit(file: FilePath): this {
+    return this.file("--init", file, "import");
   }
 
   /**
-   * Writes output of `anvil` as json to user-specified file.
-   * Sets the `--config-out` flag.
-   * @param path File path.
-   * @example
-   * ```typescript
-   * const options: AnvilOptions = new AnvilOptions().state.withConfigOut("config.json");
-   * ```
+   * Dump state on exit / every `withStateInterval` (`--dump-state`), copied to
+   * the host on stop; an existing directory becomes `<dir>/state.json`.
+   * Conflicts with `withInit`, `withState`.
    */
-  public withConfigOut(path: string): AnvilOptions {
-    this.setCliFlag("--config-out", path);
-    return this.getAnvilOptions();
+  public withDumpState(file: FilePath): this {
+    return this.file("--dump-state", file, "export-on-stop");
   }
 
-  /**
-   * Dump the state and block environment of chain on exit to the given file.
-   * Sets the `--dump-state` flag.
-   * @param path File path or directory.
-   * @example
-   * ```typescript
-   * const options: AnvilOptions = new AnvilOptions().state.withDumpState("state.json");
-   * ```
-   */
-  public withDumpState(path: string): AnvilOptions {
-    this.setCliFlag("--dump-state", path);
-    return this.getAnvilOptions();
+  /** Load (if present) and dump the same file (`--state`). Conflicts with `withInit`, `withLoadState`, `withDumpState`. */
+  public withState(file: FilePath): this {
+    return this.file("--state", file, "state");
   }
 
-  /**
-   * Initialize the genesis block with the given `genesis.json` file.
-   * Sets the `--init` flag.
-   * @param path Path to genesis.json.
-   * @example
-   * ```typescript
-   * const options: AnvilOptions = new AnvilOptions().state.withInit("genesis.json");
-   * ```
-   */
-  public withInit(path: string): AnvilOptions {
-    this.setCliFlag("--init", path);
-    return this.getAnvilOptions();
+  /** Write anvil's resolved config incl. keys as JSON, copied to the host after start (`--config-out`). */
+  public withConfigOut(file: FilePath): this {
+    return this.file("--config-out", file, "export-on-start");
   }
 
-  /**
-   * Initialize the chain from a previously saved state snapshot.
-   * Sets the `--load-state` flag.
-   * @param path Path to state file.
-   * @example
-   * ```typescript
-   * const options: AnvilOptions = new AnvilOptions().state.withLoadState("state.json");
-   * ```
-   */
-  public withLoadState(path: string): AnvilOptions {
-    this.setCliFlag("--load-state", path);
-    return this.getAnvilOptions();
+  /** Dump every `seconds` (`--state-interval`). Requires a dump target. */
+  public withStateInterval(seconds: Integerish): this {
+    return this.setValue(
+      "--state-interval",
+      integerArg("--state-interval", seconds, { min: 1n }),
+    );
   }
 
-  /**
-   * Max number of states to persist on disk.
-   * Sets the `--max-persisted-states` flag.
-   * @param count Max states.
-   * @example
-   * ```typescript
-   * const options: AnvilOptions = new AnvilOptions().state.withMaxPersistedStates(10);
-   * ```
-   */
-  public withMaxPersistedStates(count: number): AnvilOptions {
-    this.setCliFlag("--max-persisted-states", count.toString());
-    return this.getAnvilOptions();
+  /** Keep historical snapshots in dumps (`--preserve-historical-states`). Requires a dump target. */
+  public withPreserveHistoricalStates(enabled = true): this {
+    return this.toggleFlag("--preserve-historical-states", enabled);
   }
 
-  /**
-   * How transactions are sorted in the mempool.
-   * Sets the `--order` flag.
-   * @param order Sorting order. Defaults to fees.
-   * @example
-   * ```typescript
-   * const options: AnvilOptions = new AnvilOptions().state.withOrder(Order.Fifo);
-   * ```
-   */
-  public withOrder(order: Order): AnvilOptions {
-    this.setCliFlag("--order", order);
-    return this.getAnvilOptions();
+  /** Max states persisted on disk (`--max-persisted-states`). Conflicts with `withPruneHistory`. */
+  public withMaxPersistedStates(count: Integerish): this {
+    return this.setValue(
+      "--max-persisted-states",
+      integerArg("--max-persisted-states", count),
+    );
   }
 
-  /**
-   * Preserve historical state snapshots when dumping the state.
-   * Sets the `--preserve-historical-states` flag.
-   * @param enabled Whether to enable. Defaults to true.
-   * @example
-   * ```typescript
-   * const options: AnvilOptions = new AnvilOptions().state.withPreserveHistoricalStates();
-   * ```
-   */
-  public withPreserveHistoricalStates(enabled: boolean = true): AnvilOptions {
-    this.toggleCliFlag("--preserve-historical-states", enabled);
-    return this.getAnvilOptions();
+  /** Don't keep full history; optionally keep `count` states in memory (`--prune-history`). */
+  public withPruneHistory(count?: Integerish): this {
+    return this.setValue(
+      "--prune-history",
+      count === undefined ? null : integerArg("--prune-history", count),
+    );
   }
 
-  /**
-   * Don't keep full chain history.
-   * Sets the `--prune-history` flag.
-   * @param count Optional max number of states to keep in memory.
-   * @example
-   * ```typescript
-   * const options: AnvilOptions = new AnvilOptions().state.withPruneHistory(100);
-   * ```
-   */
-  public withPruneHistory(count?: number): AnvilOptions {
-    if (count !== undefined) {
-      this.setCliFlag("--prune-history", count.toString());
-    } else {
-      this.toggleCliFlag("--prune-history", true);
+  /** Blocks with transactions kept in memory (`--transaction-block-keeper`). */
+  public withTransactionBlockKeeper(count: Integerish): this {
+    return this.setValue(
+      "--transaction-block-keeper",
+      integerArg("--transaction-block-keeper", count),
+    );
+  }
+
+  /** Genesis timestamp in seconds or as a `Date` (`--timestamp`). */
+  public withTimestamp(timestamp: Integerish | Date): this {
+    return this.setValue("--timestamp", timestampArg("--timestamp", timestamp));
+  }
+
+  /** Mempool ordering (`--order`, default fees). */
+  public withOrder(order: Order): this {
+    return this.setValue("--order", enumArg("--order", order, Order, "order"));
+  }
+
+  private file(flag: FileFlag, file: FilePath, transfer: Transfer): this {
+    this.unsetFlags([flag]); // drop a previous value and its transfer
+    if (isContainerPath(file)) {
+      return this.setValue(
+        flag,
+        stringArg(flag, file.containerPath, "container path"),
+      );
     }
-    return this.getAnvilOptions();
-  }
-
-  /**
-   * Interval in seconds at which the state and block environment is to be dumped to disk.
-   * Sets the `--state-interval` flag.
-   * @param seconds Interval in seconds.
-   * @example
-   * ```typescript
-   * const options: AnvilOptions = new AnvilOptions().state.withStateInterval(60);
-   * ```
-   */
-  public withStateInterval(seconds: number): AnvilOptions {
-    this.setCliFlag("--state-interval", seconds.toString());
-    return this.getAnvilOptions();
-  }
-
-  /**
-   * This is an alias for both --load-state and --dump-state.
-   * Sets the `--state` flag.
-   * @param path State file path.
-   * @example
-   * ```typescript
-   * const options: AnvilOptions = new AnvilOptions().state.withState("state.json");
-   * ```
-   */
-  public withState(path: string): AnvilOptions {
-    this.setCliFlag("--state", path);
-    return this.getAnvilOptions();
-  }
-
-  /**
-   * The timestamp of the genesis block.
-   * Sets the `--timestamp` flag.
-   * @param timestamp Genesis timestamp.
-   * @example
-   * ```typescript
-   * const options: AnvilOptions = new AnvilOptions().state.withTimestamp(1625097600);
-   * ```
-   */
-  public withTimestamp(timestamp: number): AnvilOptions {
-    this.setCliFlag("--timestamp", timestamp.toString());
-    return this.getAnvilOptions();
-  }
-
-  /**
-   * Number of blocks with transactions to keep in memory.
-   * Sets the `--transaction-block-keeper` flag.
-   * @param count Number of blocks.
-   * @example
-   * ```typescript
-   * const options: AnvilOptions = new AnvilOptions().state.withTransactionBlockKeeper(100);
-   * ```
-   */
-  public withTransactionBlockKeeper(count: number): AnvilOptions {
-    this.setCliFlag("--transaction-block-keeper", count.toString());
-    return this.getAnvilOptions();
+    let hostPath = path.resolve(stringArg(flag, file, "host path"));
+    const exportsOnStop = transfer === "export-on-stop" || transfer === "state";
+    if (exportsOnStop && isDirectory(hostPath))
+      hostPath = path.join(hostPath, "state.json");
+    const containerPath = CONTAINER_FILE_PATHS[flag];
+    this.setValue(flag, containerPath);
+    if (transfer === "import" || transfer === "state") {
+      this.addFileTransfer({
+        flag,
+        hostPath,
+        containerPath,
+        required: transfer === "import",
+      });
+    }
+    if (transfer === "export-on-start" || exportsOnStop) {
+      this.addFileTransfer({
+        flag,
+        hostPath,
+        containerPath,
+        when: transfer === "export-on-start" ? "start" : "stop",
+      });
+    }
+    return this;
   }
 }
+
+function isDirectory(target: string): boolean {
+  try {
+    return fs.statSync(target).isDirectory();
+  } catch {
+    return false;
+  }
+}
+
+registerOptionsGroup("state", (store) => new StateOptions(store));

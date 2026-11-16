@@ -1,106 +1,62 @@
-import {
-  AnvilOptions,
-  GetAnvilOptions,
-  SetFlagFunction,
-  ToggleFlagFunction,
-} from "./anvil-options";
+import { groupFlags } from "../flags/registry";
 import { Color, LogVerbosity } from "../types";
+import {
+  OptionsGroup,
+  registerOptionsGroup,
+  StoreHandle,
+} from "./options-view";
+import { enumArg, fail } from "./validators";
 
-export class LoggingOptions {
-  private readonly setCliFlag: SetFlagFunction;
-  private readonly toggleCliFlag: ToggleFlagFunction;
-  private readonly getAnvilOptions: GetAnvilOptions;
-  constructor(
-    setFlagFunction: SetFlagFunction,
-    toggleFlagFunction: ToggleFlagFunction,
-    getAnvilOptions: GetAnvilOptions,
-  ) {
-    this.setCliFlag = setFlagFunction;
-    this.toggleCliFlag = toggleFlagFunction;
-    this.getAnvilOptions = getAnvilOptions;
+/** Flags of {@link LoggingOptions}. */
+export const LOGGING_FLAGS = groupFlags("logs");
+
+/** Verbosity accepted by {@link LoggingOptions.verboseLogs}. */
+export type VerbosityLevel = LogVerbosity | 1 | 2 | 3 | 4 | 5;
+
+/** Log format and verbosity (`.logs`). Readiness doesn't depend on logs, so all modes are safe. */
+export class LoggingOptions extends OptionsGroup {
+  protected readonly groupName = "logs";
+
+  /** @internal */
+  constructor(store: StoreHandle) {
+    super(store);
   }
 
-  /**
-   * The color of the log messages.
-   * Sets the `--color` flag.
-   * @param color Color setting.
-   * @example
-   * ```typescript
-   * const options: AnvilOptions = new AnvilOptions().logs.withColor(Color.Always);
-   * ```
-   */
-  public withColor(color: Color): AnvilOptions {
-    this.setCliFlag("--color", color);
-    return this.getAnvilOptions();
+  /** Log colours (`--color`, default auto). Conflicts with `jsonLogFormat`. */
+  public withColor(color: Color): this {
+    return this.setValue("--color", enumArg("--color", color, Color, "color"));
   }
 
-  /**
-   * Format log messages as Markdown.
-   * Sets the `--md` flag.
-   * @param enabled Whether to enable. Defaults to true.
-   * @example
-   * ```typescript
-   * const options: AnvilOptions = new AnvilOptions().logs.withMarkdownFormat();
-   * ```
-   */
-  public withMarkdownFormat(enabled: boolean = true): AnvilOptions {
-    this.toggleCliFlag("--md", enabled);
-    return this.getAnvilOptions();
+  /** JSON logs (`--json`). Conflicts with `quiet`, `withColor`, `withMarkdownFormat`. */
+  public jsonLogFormat(enabled = true): this {
+    return this.toggleFlag("--json", enabled);
   }
 
-  /**
-   * Do not print log messages.
-   * Sets the `--quiet` flag.
-   * @param enabled Whether to enable. Defaults to true.
-   * @example
-   * ```typescript
-   * const options: AnvilOptions = new AnvilOptions().logs.quiet();
-   * ```
-   */
-  public quiet(enabled: boolean = true): AnvilOptions {
-    this.toggleCliFlag("--quiet", enabled);
-    return this.getAnvilOptions();
+  /** Markdown logs (`--md`). Conflicts with `jsonLogFormat`. */
+  public withMarkdownFormat(enabled = true): this {
+    return this.toggleFlag("--md", enabled);
   }
 
-  /**
-   * Sets the verbosity level of the log messages.
-   * Sets the `-v`, `-vv`, etc. flags.
-   * @param logVerbosity Verbosity level.
-   * @example
-   * ```typescript
-   * const options: AnvilOptions = new AnvilOptions().logs.verboseLogs(LogVerbosity.Three);
-   * ```
-   */
-  public verboseLogs(logVerbosity: LogVerbosity): AnvilOptions {
-    this.toggleCliFlag(logVerbosity, true);
-    return this.getAnvilOptions();
+  /** No log output (`--quiet`). Conflicts with `verboseLogs`, `jsonLogFormat`. */
+  public quiet(enabled = true): this {
+    return this.toggleFlag("--quiet", enabled);
   }
 
-  /**
-   * Format log messages as JSON.
-   * Sets the `--json` flag.
-   * @param enabled Whether to enable. Defaults to true.
-   * @example
-   * ```typescript
-   * const options: AnvilOptions = new AnvilOptions().logs.jsonLogFormat();
-   * ```
-   */
-  public jsonLogFormat(enabled: boolean = true): AnvilOptions {
-    this.toggleCliFlag("--json", enabled);
-    return this.getAnvilOptions();
+  /** Verbosity 1–5 (`-v` … `-vvvvv`). Conflicts with `quiet`. */
+  public verboseLogs(level: VerbosityLevel): this {
+    if (!Number.isInteger(level) || level < 1 || level > 5) {
+      fail(
+        "--verbosity",
+        `expected a verbosity level between 1 and 5, received ${JSON.stringify(level)}`,
+      );
+    }
+    return this.setValue("--verbosity", level);
   }
 
-  /**
-   * Disable printing of `console.log` invocations to stdout.
-   * Sets the `--disable-console-log` flag.
-   * @param enabled Whether to enable. Defaults to true.
-   * @example
-   * ```typescript
-   * const options: AnvilOptions = new AnvilOptions().logs.disableConsoleLog();
-   * ```
-   */
-  public disableConsoleLog(enabled: boolean = true): AnvilOptions {
-    this.toggleCliFlag("--disable-console-log", enabled);
-    return this.getAnvilOptions();
+  /** Don't print Solidity `console.log` (`--disable-console-log`). */
+  public disableConsoleLog(enabled = true): this {
+    return this.toggleFlag("--disable-console-log", enabled);
   }
 }
+
+registerOptionsGroup("logs", (store) => new LoggingOptions(store));
