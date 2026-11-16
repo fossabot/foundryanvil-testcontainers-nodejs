@@ -98,9 +98,9 @@ describe("ForkingOptions", () => {
     it("validates the hash", () => {
       options.fork.withForkUrl(URL).withForkTransactionHash(HASH);
       expect(options.get("--fork-transaction-hash")).toBe(HASH);
-      expect(() =>
-        options.fork.withForkTransactionHash("0x12" as `0x${string}`),
-      ).toThrow(/32-byte hex transaction hash/);
+      expect(() => options.fork.withForkTransactionHash("0x12")).toThrow(
+        /32-byte hex transaction hash/,
+      );
       expect(() => options.fork.withForkBlockNumber(1)).toThrow(
         /cannot be combined/,
       );

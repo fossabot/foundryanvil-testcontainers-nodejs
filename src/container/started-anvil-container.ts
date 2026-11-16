@@ -6,8 +6,8 @@ import {
   AbstractStartedContainer,
   getContainerRuntimeClient,
   StartedTestContainer,
-  StoppedTestContainer,
   StopOptions,
+  StoppedTestContainer,
 } from "testcontainers";
 import {
   Abi,
@@ -40,13 +40,7 @@ export const DEFAULT_GRACEFUL_STOP_TIMEOUT_MS = 30_000;
 export const ANVIL_POLLING_INTERVAL_MS = 100;
 
 /** viem test client (`anvil` mode) with public and wallet actions. */
-export type AnvilTestClient = TestClient<
-  "anvil",
-  Transport,
-  Chain,
-  undefined,
-  true
-> &
+export type AnvilTestClient = TestClient<"anvil", Transport, Chain, undefined> &
   PublicActions<Transport, Chain, undefined> &
   WalletActions<Chain, undefined>;
 
@@ -281,7 +275,7 @@ export class StartedAnvilContainer extends AbstractStartedContainer {
       bytecode,
       account,
       args,
-    } as never);
+    });
     await this.mineIfNeeded();
     return this._client.waitForTransactionReceipt({ hash });
   }
@@ -470,6 +464,13 @@ export class StartedAnvilContainer extends AbstractStartedContainer {
     return stopped;
   }
 
+  /** @internal Copies the container → host files due at `when`. */
+  public async exportFiles(when: FileExport["when"]): Promise<void> {
+    for (const transfer of this.configuration.fileExports) {
+      if (transfer.when === when) await copyFromContainer(this, transfer);
+    }
+  }
+
   /** Removes a container stopped with `remove: false`; overridable for non-Docker runtimes. */
   protected async removeStoppedContainer(
     stopped: StoppedTestContainer,
@@ -479,13 +480,6 @@ export class StartedAnvilContainer extends AbstractStartedContainer {
     await client.container.remove(client.container.getById(stopped.getId()), {
       removeVolumes,
     });
-  }
-
-  /** @internal Copies the container → host files due at `when`. */
-  public async exportFiles(when: FileExport["when"]): Promise<void> {
-    for (const transfer of this.configuration.fileExports) {
-      if (transfer.when === when) await copyFromContainer(this, transfer);
-    }
   }
 
   private async mineIfNeeded(): Promise<void> {
@@ -572,6 +566,7 @@ async function copyFromContainer(
   } catch (error: unknown) {
     throw new Error(
       `Could not copy ${transfer.flag} output "${transfer.containerPath}" out of the container (anvil did not write it?): ${error instanceof Error ? error.message : String(error)}`,
+      { cause: error },
     );
   }
   const file = await extractSingleFile(archive);

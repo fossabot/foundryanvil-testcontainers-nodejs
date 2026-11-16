@@ -48,26 +48,26 @@
     "check": "pnpm build && pnpm typecheck && pnpm eslint && pnpm test"
   },
   "dependencies": {
-    "testcontainers": "^11.11.0",
-    "viem": "^2.45.0"
+    "testcontainers": "^12.2.1",
+    "viem": "^2.57.20"
   },
   "devDependencies": {
-    "@eslint/js": "^9.39.2",
+    "@eslint/js": "^10.0.1",
     "@foundry-rs/anvil": "1.6.0-rc1",
-    "@swc/core": "^1.15.10",
+    "@swc/core": "^1.16.22",
     "@swc/jest": "^0.2.39",
     "@types/jest": "^30.0.0",
-    "@types/node": "^25.0.10",
-    "bunchee": "^6.9.4",
-    "eslint": "^9.39.2",
+    "@types/node": "^26.6.6",
+    "bunchee": "^7.1.0",
+    "eslint": "^10.15.0",
     "eslint-config-prettier": "^10.1.8",
-    "eslint-plugin-prettier": "^5.5.5",
-    "globals": "^17.1.0",
-    "jest": "^30.2.0",
-    "prettier": "^3.8.1",
+    "eslint-plugin-prettier": "^5.5.7",
+    "globals": "^17.14.0",
+    "jest": "^30.5.2",
+    "prettier": "^3.10.1",
     "tsdx": "^2.0.0",
     "typescript": "^5.9.3",
-    "typescript-eslint": "^8.53.1"
+    "typescript-eslint": "^8.72.2"
   },
   "jest": {
     "collectCoverageFrom": [

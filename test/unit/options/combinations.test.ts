@@ -268,7 +268,7 @@ describe("maximal configurations", () => {
         1,
       );
     }
-    for (let changed = true; changed; ) {
+    for (let changed = true; changed;) {
       changed = false;
       for (const flag of [...chosen]) {
         if (flag === seed) continue;

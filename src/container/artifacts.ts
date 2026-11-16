@@ -35,6 +35,7 @@ function parseJson(text: string, fullPath: string, kind: string): unknown {
   } catch (error: unknown) {
     throw new Error(
       `${kind} file at ${fullPath} is not valid JSON: ${(error as Error).message}`,
+      { cause: error },
     );
   }
 }
@@ -50,8 +51,7 @@ export function loadContractAbi(
 ): Abi {
   const { fullPath, text } = read(location, artifactsDir, "ABI");
   const parsed = parseJson(text, fullPath, "ABI") as
-    | { abi?: unknown }
-    | unknown[];
+    { abi?: unknown } | unknown[];
   const abi = Array.isArray(parsed) ? parsed : parsed?.abi;
   if (!Array.isArray(abi)) {
     throw new Error(

@@ -36,7 +36,7 @@ describe("LoggingOptions", () => {
       [LogVerbosity.Five, "-vvvvv"],
       [2, "-vv"],
     ])("level %s renders %s", (level, rendered) => {
-      options.logs.verboseLogs(level as LogVerbosity);
+      options.logs.verboseLogs(level);
       expect(options.toArgs()).toEqual(["--host", "0.0.0.0", rendered]);
       expect(options.get("--verbosity")).toBe(Number(level));
     });

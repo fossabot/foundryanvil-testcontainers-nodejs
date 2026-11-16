@@ -21,11 +21,7 @@ export type FlagCategory =
  * `optional-value` (`--ipc[=path]`), `multi-value` (repeatable) or `count` (`-vvv`).
  */
 export type FlagValueKind =
-  | "boolean"
-  | "value"
-  | "optional-value"
-  | "multi-value"
-  | "count";
+  "boolean" | "value" | "optional-value" | "multi-value" | "count";
 
 /** Canonical (long-form) anvil flag. */
 export type AnvilFlag =
