@@ -5,6 +5,7 @@ import {
   WaitStrategy,
 } from "testcontainers";
 import { AnvilStartupError } from "../errors";
+import { readContainerLogSnapshot } from "./container-logs";
 
 /** Container handle passed to wait strategies. */
 export type RuntimeContainer = Parameters<WaitStrategy["waitUntilReady"]>[0];
@@ -16,10 +17,8 @@ export async function tailContainerLogs(
   tail = 60,
 ): Promise<string | undefined> {
   try {
-    let text = "";
-    for await (const chunk of await client.container.logs(container, { tail }))
-      text += String(chunk);
-    return text.trim();
+    const dockerContainer = client.container.getById(container.id);
+    return (await readContainerLogSnapshot(dockerContainer, tail)).trim();
   } catch {
     return undefined;
   }

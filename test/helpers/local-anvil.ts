@@ -319,6 +319,11 @@ export class LocalAnvilProcess implements StartedTestContainer {
     return Promise.resolve(Readable.from([text]));
   }
 
+  public getLogSnapshot(tail?: number): string {
+    if (tail === undefined) return this.output;
+    return tail <= 0 ? "" : `${this.tail(tail)}\n`;
+  }
+
   public async [Symbol.asyncDispose](): Promise<void> {
     await this.stop();
   }

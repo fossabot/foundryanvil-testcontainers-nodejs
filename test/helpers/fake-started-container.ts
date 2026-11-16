@@ -114,6 +114,11 @@ export class FakeStartedTestContainer implements StartedTestContainer {
   logs(_opts?: { since?: number; tail?: number }): Promise<Readable> {
     return Promise.resolve(Readable.from([this.logOutput]));
   }
+  getLogSnapshot(tail?: number): string {
+    if (tail === undefined) return this.logOutput;
+    const lines = this.logOutput.trimEnd().split("\n");
+    return tail <= 0 ? "" : `${lines.slice(-tail).join("\n")}\n`;
+  }
   [Symbol.asyncDispose](): Promise<void> {
     return this.stop().then(() => undefined);
   }

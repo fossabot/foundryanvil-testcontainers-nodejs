@@ -30,6 +30,7 @@ import { FileExport } from "../flags/flag-store";
 import { AnvilConfiguration } from "../options/options-view";
 import { Address, AnvilAccount, HexString } from "../types";
 import { loadContractAbi, loadContractBytecode } from "./artifacts";
+import { readStartedContainerLogSnapshot } from "./container-logs";
 import { extractSingleFile } from "./tar";
 
 /** `docker stop` timeout used when a state dump must be written on exit. */
@@ -423,10 +424,7 @@ export class StartedAnvilContainer extends AbstractStartedContainer {
 
   /** Container logs so far, optionally the last `tail` lines. */
   public async logText(tail?: number): Promise<string> {
-    const stream = await this.logs(tail === undefined ? undefined : { tail });
-    let text = "";
-    for await (const chunk of stream) text += String(chunk);
-    return text;
+    return readStartedContainerLogSnapshot(this.startedTestContainer, tail);
   }
 
   /** ABI from the artifacts dir (see `AnvilContainer.withArtifactsDir`). */

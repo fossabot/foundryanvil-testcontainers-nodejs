@@ -1,6 +1,5 @@
 import * as http from "node:http";
 import { AddressInfo } from "node:net";
-import { Readable } from "node:stream";
 import { BoundPorts, getContainerRuntimeClient } from "testcontainers";
 import { AnvilReadyWaitStrategy, AnvilStartupError } from "../../../src";
 import {
@@ -17,9 +16,20 @@ type Status = "running" | "exited" | "dead";
 
 function fakeClient(states: Status[], logs = "boom\n", logsFail = false) {
   let call = 0;
+  const dockerContainer = {
+    inspect: jest.fn().mockResolvedValue({ Config: { Tty: false } }),
+    logs: jest
+      .fn()
+      .mockImplementation(() =>
+        logsFail
+          ? Promise.reject(new Error("no logs"))
+          : Promise.resolve(Buffer.from(logs)),
+      ),
+  };
   const client = {
     info: { containerRuntime: { host: "127.0.0.1" } },
     container: {
+      getById: jest.fn().mockReturnValue(dockerContainer),
       inspect: jest.fn().mockImplementation(() => {
         const status = states[Math.min(call, states.length - 1)];
         call += 1;
@@ -27,17 +37,10 @@ function fakeClient(states: Status[], logs = "boom\n", logsFail = false) {
           State: { Status: status, ExitCode: status === "running" ? 0 : 1 },
         });
       }),
-      logs: jest
-        .fn()
-        .mockImplementation(() =>
-          logsFail
-            ? Promise.reject(new Error("no logs"))
-            : Promise.resolve(Readable.from([logs])),
-        ),
     },
   };
   (getContainerRuntimeClient as jest.Mock).mockResolvedValue(client);
-  return client;
+  return { ...client, dockerContainer };
 }
 
 const container = { id: "abc" } as Parameters<
@@ -132,7 +135,7 @@ describe("AnvilReadyWaitStrategy", () => {
 
   it("fails fast with logs when the container exits", async () => {
     behaviour = (_req, res) => res.writeHead(503).end();
-    fakeClient(
+    const client = fakeClient(
       ["running", "exited"],
       "error: the argument '--no-mining' cannot be used with '--block-time'\n",
     );
@@ -157,6 +160,12 @@ describe("AnvilReadyWaitStrategy", () => {
     );
     expect(startupError.command).toEqual(["anvil", "--no-mining"]);
     expect(startupError.logs).toContain("cannot be used");
+    expect(client.dockerContainer.logs).toHaveBeenCalledWith({
+      follow: false,
+      stdout: true,
+      stderr: true,
+      tail: 60,
+    });
   });
 
   it("treats a dead container like an exited one even if logs are unavailable", async () => {
@@ -176,6 +185,26 @@ describe("AnvilReadyWaitStrategy", () => {
     await expect(strategy.waitUntilReady(container, bound())).rejects.toThrow(
       /did not answer JSON-RPC requests on port 8545 within 60 ms[\s\S]*Command: anvil -q[\s\S]*still starting/,
     );
+  });
+
+  it("includes a snapshot when startup times out while the container is running", async () => {
+    behaviour = (_req, res) => res.writeHead(404).end("nope");
+    const client = fakeClient(["running"], "still starting");
+    await expect(
+      new AnvilReadyWaitStrategy(8545)
+        .withPollInterval(5)
+        .withStartupTimeout(40)
+        .waitUntilReady(container, bound()),
+    ).rejects.toMatchObject({
+      name: "AnvilStartupError",
+      logs: "still starting",
+    });
+    expect(client.dockerContainer.logs).toHaveBeenCalledWith({
+      follow: false,
+      stdout: true,
+      stderr: true,
+      tail: 60,
+    });
   });
 
   it("survives an unreachable port", async () => {
@@ -209,16 +238,15 @@ describe("probeJsonRpc / tailContainerLogs", () => {
     ).toBeUndefined();
   });
 
-  it("tailContainerLogs joins chunks and swallows stream errors", async () => {
+  it("tailContainerLogs reads snapshots and swallows log errors", async () => {
     const client = fakeClient(["running"], "a\nb\n");
     expect(await tailContainerLogs(client as never, container)).toBe("a\nb");
     const failing = {
       container: {
-        logs: () => {
-          const stream = new Readable({ read() {} });
-          setImmediate(() => stream.emit("error", new Error("broken")));
-          return Promise.resolve(stream);
-        },
+        getById: () => ({
+          inspect: () => Promise.resolve({ Config: { Tty: false } }),
+          logs: () => Promise.reject(new Error("broken")),
+        }),
       },
     };
     expect(

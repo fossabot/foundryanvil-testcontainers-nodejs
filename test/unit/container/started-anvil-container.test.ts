@@ -437,7 +437,7 @@ describe("StartedAnvilContainer", () => {
         false,
       ]);
       expect(await container.logText()).toBe("line1\nline2\n");
-      expect(await container.logText(1)).toBe("line1\nline2\n");
+      expect(await container.logText(1)).toBe("line2\n");
     });
   });
 
