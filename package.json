@@ -48,7 +48,6 @@
     "examples:e2e": "pnpm examples:setup && cd examples && npm run typecheck && npm run lint && npm run test:e2e",
     "typecheck": "tsc --noEmit",
     "prepublishOnly": "pnpm run build",
-    "check": "pnpm build && pnpm typecheck && pnpm eslint && pnpm test && pnpm examples:test",
     "gate": "pnpm build && pnpm typecheck && pnpm eslint && pnpm test:unit && pnpm test:e2e --no-docker && pnpm examples:unit && pnpm examples:e2e --no-docker"
   },
   "dependencies": {
