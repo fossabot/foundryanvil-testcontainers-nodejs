@@ -26,3 +26,6 @@ dist
 # OS-specific files
 .DS_Store
 Thumbs.db
+# Examples project (separate npm project)
+examples/node_modules
+examples/.npm-link

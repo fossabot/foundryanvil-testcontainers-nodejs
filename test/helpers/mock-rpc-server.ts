@@ -34,6 +34,10 @@ export class MockRpcServer {
   ];
   public overrides = new Map<string, Handler>();
   public failNext = new Map<string, { code: number; message: string }>();
+  /** Receipt status returned for mined transactions (`0x1` success, `0x0` reverted). */
+  public receiptStatus: "0x0" | "0x1" = "0x1";
+  /** Transactions sent while automine was off stay pending until a block is mined. */
+  public pending = false;
   private server?: http.Server;
   private blockNumber = 0;
 
@@ -77,6 +81,12 @@ export class MockRpcServer {
 
   public async stop(): Promise<void> {
     await new Promise<void>((resolve) => this.server?.close(() => resolve()));
+  }
+
+  /** Simulates a block mined by the node itself (e.g. interval mining). */
+  public mineBlock(): void {
+    this.blockNumber += 1;
+    this.pending = false;
   }
 
   public callsFor(method: string): RpcCall[] {
@@ -139,7 +149,73 @@ export class MockRpcServer {
       case "evm_setBlockGasLimit":
       case "anvil_loadState":
       case "anvil_setLoggingEnabled":
+      case "anvil_addBalance":
+      case "anvil_dealERC20":
+      case "anvil_setERC20Allowance":
+      case "anvil_dropAllTransactions":
+      case "anvil_removePoolTransactions":
+      case "anvil_dropTransaction":
+      case "anvil_rollback":
+      case "anvil_reorg":
+      case "anvil_setCode":
+      case "anvil_setNonce":
+      case "anvil_setStorageAt":
+      case "anvil_setCoinbase":
+      case "anvil_setBlockTimestampInterval":
+      case "anvil_removeBlockTimestampInterval":
+      case "anvil_setRpcUrl":
+      case "evm_setTime":
         return null;
+      case "anvil_reset":
+        this.blockNumber = 0;
+        return null;
+      case "anvil_setChainId":
+        this.chainId = Number(params[0]);
+        return null;
+      case "anvil_getIntervalMining":
+        return null;
+      case "eth_sendUnsignedTransaction":
+        return HASH;
+      case "txpool_status":
+        return { pending: "0x0", queued: "0x0" };
+      case "txpool_content":
+      case "txpool_inspect":
+        return { pending: {}, queued: {} };
+      case "eth_getTransactionByHash":
+        return {
+          hash: HASH,
+          from: this.accounts[0].toLowerCase(),
+          to: this.accounts[1].toLowerCase(),
+          input: "0x",
+          value: "0x0",
+          gas: "0x5208",
+          nonce: "0x0",
+          blockHash: `0x${"22".repeat(32)}`,
+          blockNumber: `0x${this.blockNumber.toString(16)}`,
+          transactionIndex: "0x0",
+          type: "0x2",
+          maxFeePerGas: "0x1",
+          maxPriorityFeePerGas: "0x1",
+          chainId: `0x${this.chainId.toString(16)}`,
+          v: "0x0",
+          r: `0x${"01".repeat(32)}`,
+          s: `0x${"01".repeat(32)}`,
+        };
+      case "eth_call":
+        return "0x";
+      case "eth_getBlockByNumber":
+      case "eth_getBlockByHash":
+        return {
+          number: `0x${this.blockNumber.toString(16)}`,
+          hash: `0x${"22".repeat(32)}`,
+          parentHash: `0x${"00".repeat(32)}`,
+          timestamp: "0x0",
+          gasLimit: "0x1c9c380",
+          gasUsed: "0x0",
+          baseFeePerGas: "0x1",
+          miner: `0x${"00".repeat(20)}`,
+          transactions: [],
+        };
       case "evm_increaseTime":
         return "0x0";
       case "anvil_getAutomine":
@@ -147,11 +223,15 @@ export class MockRpcServer {
       case "anvil_mine":
       case "evm_mine":
         this.blockNumber += Number(params[0] ?? 1) || 1;
+        this.pending = false;
         return null;
       case "eth_sendTransaction":
+      case "eth_sendRawTransaction":
         if (this.automine) this.blockNumber += 1;
+        else this.pending = true;
         return HASH;
       case "eth_getTransactionReceipt":
+        if (this.pending) return null;
         return {
           transactionHash: HASH,
           transactionIndex: "0x0",
@@ -164,7 +244,7 @@ export class MockRpcServer {
           contractAddress: "0x5fbdb2315678afecb367f032d93f642f64180aa3",
           logs: [],
           logsBloom: `0x${"00".repeat(256)}`,
-          status: "0x1",
+          status: this.receiptStatus,
           effectiveGasPrice: "0x1",
           type: "0x2",
         };

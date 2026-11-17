@@ -2,11 +2,16 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { getContainerRuntimeClient } from "testcontainers";
-import { parseEther } from "viem";
+import { type Account, parseEther } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import {
   AnvilOptions,
   AnvilTestClient,
+  AnvilTestClientConfigurationError,
+  AnvilTestClientError,
+  DEFAULT_POLLING_INTERVAL_MS,
+  MULTICALL3_ADDRESS,
+  TestClientOptions,
   CONTAINER_FILE_PATHS,
   DEFAULT_GRACEFUL_STOP_TIMEOUT_MS,
   DEFAULT_MNEMONIC,
@@ -97,12 +102,14 @@ describe("StartedAnvilContainer", () => {
 
     it("rpc() sends raw requests", async () => {
       const container = started();
-      await expect(container.rpc("anvil_setChainId", [1])).rejects.toThrow(
+      await expect(container.rpc("anvil_enableTraces", [1])).rejects.toThrow(
         /Method not found/,
       );
-      rpc.overrides.set("anvil_setChainId", () => null);
-      await expect(container.rpc("anvil_setChainId", [1])).resolves.toBeNull();
-      expect(rpc.callsFor("anvil_setChainId")[1].params).toEqual([1]);
+      rpc.overrides.set("anvil_enableTraces", () => null);
+      await expect(
+        container.rpc("anvil_enableTraces", [1]),
+      ).resolves.toBeNull();
+      expect(rpc.callsFor("anvil_enableTraces")[1].params).toEqual([1]);
     });
   });
 
@@ -265,11 +272,26 @@ describe("StartedAnvilContainer", () => {
       expect(rpc.callsFor("anvil_mine")).toHaveLength(1);
     });
 
-    it("mines when anvil_getAutomine is unavailable", async () => {
-      rpc.failNext.set("anvil_getAutomine", { code: -32601, message: "nope" });
+    it("does not consult automine when the receipt already exists", async () => {
       const container = started();
       const [alice, bob] = rpc.accounts;
       await container.sendEthTransaction(alice, bob, "0.1");
+      expect(rpc.callsFor("anvil_mine")).toHaveLength(0);
+      expect(rpc.callsFor("anvil_getAutomine")).toHaveLength(0);
+    });
+
+    it("treats an unavailable anvil_getAutomine as automine and waits (e.g. interval mining)", async () => {
+      rpc.automine = false;
+      rpc.failNext.set("anvil_getAutomine", { code: -32601, message: "nope" });
+      const container = started();
+      const [alice, bob] = rpc.accounts;
+      const mined = setTimeout(() => rpc.mineBlock(), 50);
+      try {
+        const receipt = await container.sendEthTransaction(alice, bob, "0.1");
+        expect(receipt.status).toBe("success");
+      } finally {
+        clearTimeout(mined);
+      }
       expect(rpc.callsFor("anvil_mine")).toHaveLength(0);
       expect(rpc.callsFor("anvil_getAutomine")).toHaveLength(1);
     });
@@ -550,6 +572,249 @@ describe("StartedAnvilContainer", () => {
     await container.exportFiles("start");
     expect(fs.existsSync(startTarget)).toBe(true);
     expect(fs.existsSync(stopTarget)).toBe(false);
+  });
+
+  describe("test client", () => {
+    const KEY_1 =
+      "0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d";
+
+    function withClient<A extends Account | undefined>(
+      client: TestClientOptions<A>,
+      options: AnvilOptions = new AnvilOptions(),
+    ) {
+      const configuration = options.build();
+      return new StartedAnvilContainer<A>(fake, {
+        rpcUrl: rpc.url,
+        chainId: 31337,
+        configuration,
+        artifactsDir: tmp,
+        testClient: client.build(configuration),
+      });
+    }
+
+    it("uses defaults tuned for a local node and exposes the settings", () => {
+      const container = started();
+      expect(container.testClient).toBe(container.client);
+      expect(container.testClient.account).toBeUndefined();
+      expect(container.testClient.cacheTime).toBe(0);
+      expect(container.testClient.pollingInterval).toBe(
+        DEFAULT_POLLING_INTERVAL_MS,
+      );
+      expect(container.testClient.transport.type).toBe("http");
+      expect(container.testClientConfiguration.transport).toBe("http");
+    });
+
+    it("applies transport, polling, cache and chain settings", () => {
+      const container = withClient(
+        new TestClientOptions()
+          .withPollingInterval(20)
+          .withCacheTime(500)
+          .withTimeout(1_000)
+          .withRetries(1, 5)
+          .withBatch({ batchSize: 2 })
+          .withChain({
+            name: "Local",
+            nativeCurrency: { name: "Test", symbol: "TST", decimals: 18 },
+          })
+          .withMulticall3(),
+      );
+      const client = container.testClient;
+      expect(client.pollingInterval).toBe(20);
+      expect(client.cacheTime).toBe(500);
+      expect(client.transport).toMatchObject({
+        type: "http",
+        timeout: 1_000,
+        retryCount: 1,
+        retryDelay: 5,
+      });
+      expect(container.chain.name).toBe("Local");
+      expect(container.chain.nativeCurrency.symbol).toBe("TST");
+      expect(container.chain.contracts?.multicall3?.address).toBe(
+        MULTICALL3_ADDRESS,
+      );
+      expect(container.chain.id).toBe(31337);
+    });
+
+    it("hoists an address account synchronously", () => {
+      const container = withClient(
+        new TestClientOptions().withAccount(rpc.accounts[1]),
+      );
+      expect(container.testClient.account).toEqual({
+        address: rpc.accounts[1],
+        type: "json-rpc",
+      });
+    });
+
+    it("resolves dev account indexes on initialize (node or local signing)", async () => {
+      const nodeSigned = await withClient(
+        new TestClientOptions().withAccount(2),
+      ).initialize();
+      expect(nodeSigned.testClient.account.address).toBe(rpc.accounts[2]);
+      expect(nodeSigned.testClient.account.type).toBe("json-rpc");
+
+      const local = await withClient(
+        new TestClientOptions().withLocalAccount(1),
+      ).initialize();
+      expect(local.testClient.account.type).toBe("local");
+      expect(local.testClient.account.address).toBe(
+        privateKeyToAccount(KEY_1).address,
+      );
+      // addresses() still lists every dev account (viem would return only the local one).
+      expect(await local.addresses()).toEqual(rpc.accounts);
+    });
+
+    it("impersonates a configured account on initialize", async () => {
+      const stranger = "0x1111111111111111111111111111111111111111";
+      await withClient(
+        new TestClientOptions().withAccount(stranger, { impersonate: true }),
+      ).initialize();
+      expect(rpc.callsFor("anvil_impersonateAccount")[0].params).toEqual([
+        stranger,
+      ]);
+    });
+
+    it("reports unresolvable default accounts", async () => {
+      await expect(
+        withClient(new TestClientOptions().withAccount(7)).initialize(),
+      ).rejects.toMatchObject({
+        code: "ACCOUNT_UNAVAILABLE",
+        message: expect.stringMatching(
+          /Default account 7 does not exist: the node has 3 dev account\(s\)/,
+        ) as unknown,
+      });
+      await expect(
+        withClient(
+          new TestClientOptions().withLocalAccount(0),
+          new AnvilOptions().account.withRandomMnemonic(),
+        ).initialize(),
+      ).rejects.toMatchObject({
+        code: "ACCOUNT_UNAVAILABLE",
+        message: expect.stringMatching(
+          /private key of dev account 0 is unknown.*withAccount\(0\)/,
+        ) as unknown,
+      });
+    });
+
+    it("testClientFor() acts as another account with the same settings", () => {
+      const container = withClient(
+        new TestClientOptions().withPollingInterval(33),
+      );
+      const local = privateKeyToAccount(KEY_1);
+      expect(container.testClientFor(rpc.accounts[1]).account).toEqual({
+        address: rpc.accounts[1],
+        type: "json-rpc",
+      });
+      expect(
+        container.testClientFor({ address: rpc.accounts[2] }).account.address,
+      ).toBe(rpc.accounts[2]);
+      const signer = container.testClientFor(local);
+      expect(signer.account).toBe(local);
+      expect(signer.pollingInterval).toBe(33);
+    });
+
+    it("createTestClient() validates settings against the node's configuration", async () => {
+      const container = started(new AnvilOptions().account.withAccounts(3));
+      const client = await container.createTestClient((o) =>
+        o.withAccount(1).withPollingInterval(7),
+      );
+      expect(client.account.address).toBe(rpc.accounts[1]);
+      expect(client.pollingInterval).toBe(7);
+      const plain = await container.createTestClient(new TestClientOptions());
+      expect(plain.account).toBeUndefined();
+      const stranger = "0x1111111111111111111111111111111111111111";
+      await container.createTestClient((o) =>
+        o.withAccount(stranger, { impersonate: true }),
+      );
+      expect(rpc.callsFor("anvil_impersonateAccount")).toHaveLength(1);
+      await expect(
+        container.createTestClient((o) => o.withAccount(3)),
+      ).rejects.toBeInstanceOf(AnvilTestClientConfigurationError);
+    });
+
+    it("follows chain id changes made through the client", async () => {
+      const container = started();
+      const before = container.chain;
+      await container.testClient.setChainId({ chainId: 5 });
+      expect(container.chainId).toBe(5);
+      expect(container.chain).toBe(before);
+      expect(container.chain.name).toBe("Anvil (5)");
+      expect(container.testClient.chain.id).toBe(5);
+
+      const custom = withClient(
+        new TestClientOptions().withChain({ name: "Mine" }),
+      );
+      await custom.cheats.setChainId(6);
+      expect(custom.chain.name).toBe("Mine");
+      expect(custom.chainId).toBe(6);
+    });
+
+    it("rejects requests after stop() with CONTAINER_STOPPED", async () => {
+      const container = started();
+      const other = container.testClientFor(rpc.accounts[1]);
+      expect(container.isStopped).toBe(false);
+      await container.stop();
+      expect(container.isStopped).toBe(true);
+      for (const request of [
+        container.testClient.getBlockNumber(),
+        other.getChainId(),
+        container.rpc("eth_chainId"),
+        container.cheats.mine().run(),
+      ]) {
+        await expect(request).rejects.toThrow(
+          /has been stopped, so its test client cannot be used anymore/,
+        );
+      }
+      const error = await container.testClient
+        .getBlockNumber()
+        .catch((e: unknown) => e);
+      expect(error).toBeInstanceOf(AnvilTestClientError);
+      expect((error as AnvilTestClientError).code).toBe("CONTAINER_STOPPED");
+    });
+
+    it("closes WebSocket clients on stop", async () => {
+      const close = jest.fn();
+      const container = withClient(
+        new TestClientOptions().withTransport("webSocket"),
+      );
+      expect(container.testClient.transport.type).toBe("webSocket");
+      const ws = container.testClientFor(rpc.accounts[1]);
+      const transports = [
+        container.testClient.transport,
+        ws.transport,
+      ] as unknown as Array<{
+        getRpcClient: () => Promise<{ close(): void }>;
+      }>;
+      transports[0].getRpcClient = () => Promise.resolve({ close });
+      transports[1].getRpcClient = () =>
+        Promise.reject(new Error("never connected"));
+      await container.stop();
+      expect(close).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe("ergonomic helpers", () => {
+    it("accept durations and report the time offset", async () => {
+      rpc.overrides.set("evm_increaseTime", () => "0xe10");
+      const container = started();
+      expect(await container.increaseTime({ hours: 1 })).toBe(3_600);
+      await container.mine(2, { minutes: 1 });
+      await container.setIntervalMining({ seconds: 5 });
+      expect(rpc.callsFor("evm_increaseTime")[0].params).toEqual(["0xe10"]);
+      expect(rpc.callsFor("anvil_mine")[0].params).toEqual(["0x2", "0x3c"]);
+      expect(rpc.callsFor("evm_setIntervalMining")[0].params).toEqual([5]);
+      await expect(container.increaseTime(-1)).rejects.toThrow(RangeError);
+      expect(() => container.setNextBlockTimestamp(-1)).toThrow(RangeError);
+    });
+
+    it("latestTimestamp() reads the latest block", async () => {
+      rpc.overrides.set("eth_getBlockByNumber", () => ({
+        number: "0x1",
+        hash: `0x${"33".repeat(32)}`,
+        timestamp: "0x64",
+        transactions: [],
+      }));
+      expect(await started().latestTimestamp()).toBe(100n);
+    });
   });
 
   it("type: HexString helpers compile", () => {

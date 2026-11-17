@@ -1,0 +1,5 @@
+node_modules
+# npm's "global" folder for `npm link`, kept inside the project (see scripts/link-library.mjs)
+.npm-link
+coverage
+*.log

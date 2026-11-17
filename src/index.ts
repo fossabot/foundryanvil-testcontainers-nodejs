@@ -1,6 +1,8 @@
 /**
  * Foundry Anvil Testcontainers module: {@link AnvilOptions} (fluent config for
- * every anvil flag), {@link AnvilContainer} and {@link StartedAnvilContainer}.
+ * every anvil flag), {@link AnvilContainer}, {@link StartedAnvilContainer}
+ * with its pre-configured viem {@link AnvilTestClient} ({@link TestClientOptions},
+ * {@link AnvilCheats}) and {@link useAnvil} for test lifecycle hooks.
  * @packageDocumentation
  */
 export { AnvilOptions } from "./options/anvil-options";
@@ -61,9 +63,8 @@ export {
   ANVIL_POLLING_INTERVAL_MS,
 } from "./container/started-anvil-container";
 export type {
-  AnvilMetadata,
-  AnvilNodeInfo,
-  AnvilTestClient,
+  AnvilCheckpoint,
+  TestClientAccountInput,
 } from "./container/started-anvil-container";
 export { AnvilReadyWaitStrategy } from "./container/wait-strategy";
 export {
@@ -72,7 +73,52 @@ export {
   DEFAULT_ARTIFACTS_DIR,
 } from "./container/artifacts";
 
-export { AnvilConfigurationError, AnvilStartupError } from "./errors";
+export {
+  TestClientOptions,
+  DEFAULT_POLLING_INTERVAL_MS,
+  DEFAULT_REQUEST_TIMEOUT_MS,
+  DEFAULT_RETRY_COUNT,
+  DEFAULT_RETRY_DELAY_MS,
+  MULTICALL3_ADDRESS,
+} from "./client/test-client-options";
+export type {
+  TestClientAccountSpec,
+  TestClientBatchOptions,
+  TestClientChainOverrides,
+  TestClientConfiguration,
+  TestClientTransport,
+} from "./client/test-client-options";
+export type { AnvilTestClient } from "./client/test-client";
+export { anvilActions } from "./client/anvil-actions";
+export type {
+  AnvilActions,
+  AnvilResetParameters,
+  ConfirmTransactionParameters,
+} from "./client/anvil-actions";
+export { AnvilCheats } from "./client/cheats";
+export { useAnvil, DEFAULT_USE_ANVIL_TIMEOUT_MS } from "./client/use-anvil";
+export type {
+  AnvilStartable,
+  AnvilTestHooks,
+  UseAnvilSettings,
+} from "./client/use-anvil";
+export { durationToSeconds, timestampToSeconds } from "./client/units";
+export type { Duration, Timestamp } from "./client/units";
+export type {
+  AnvilMetadata,
+  AnvilNodeInfo,
+  ReorgTransaction,
+} from "./client/types";
+
+export {
+  AnvilConfigurationError,
+  AnvilStartupError,
+  AnvilTestClientConfigurationError,
+  AnvilTestClientError,
+  AnvilTransactionRevertedError,
+  ANVIL_TEST_CLIENT_ERROR_CODES,
+} from "./errors";
+export type { AnvilTestClientErrorCode } from "./errors";
 
 export {
   Color,

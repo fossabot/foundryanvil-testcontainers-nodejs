@@ -1,0 +1,48 @@
+{
+  "name": "foundryanvil-testcontainers-examples",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Advanced, tested workflows for the Foundry Anvil Testcontainers module and its viem test client. Consumes the library through `npm link`, like an end-user project.",
+  "license": "MIT",
+  "scripts": {
+    "link:library": "node scripts/link-library.mjs",
+    "docs:sync": "node scripts/sync-readme.mjs",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint \"{src,test,scripts}/**/*.{ts,mjs,cjs}\" \"*.{mjs,cjs}\"",
+    "lint:fix": "eslint \"{src,test,scripts}/**/*.{ts,mjs,cjs}\" \"*.{mjs,cjs}\" --fix",
+    "test:unit": "jest --colors test/unit",
+    "test:e2e": "node scripts/e2e.mjs",
+    "check": "npm run typecheck && npm run lint && npm run test:unit && npm run test:e2e"
+  },
+  "peerDependencies": {
+    "@hellaweb3/foundryanvil-testcontainers-nodejs": ">=0.4.0"
+  },
+  "peerDependenciesMeta": {
+    "@hellaweb3/foundryanvil-testcontainers-nodejs": {
+      "optional": true
+    }
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "dependencies": {
+    "testcontainers": "^12.2.0",
+    "viem": "2.57.20"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@foundry-rs/anvil": "1.6.0-rc1",
+    "@swc/core": "^1.16.22",
+    "@swc/jest": "^0.2.39",
+    "@types/jest": "^30.0.0",
+    "@types/node": "^22.20.5",
+    "eslint": "^10.14.0",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-prettier": "^5.5.7",
+    "globals": "^17.14.0",
+    "jest": "^30.5.2",
+    "prettier": "^3.9.10",
+    "typescript": "~5.9.3",
+    "typescript-eslint": "^8.72.2"
+  }
+}

@@ -8,9 +8,11 @@ import {
   AnvilOptions,
   AnvilReadyWaitStrategy,
   AnvilStartupError,
+  AnvilTestClientConfigurationError,
   CONTAINER_FILE_PATHS,
   DEFAULT_ANVIL_IMAGE,
   StartedAnvilContainer,
+  TestClientOptions,
   containerPath,
 } from "../../../src";
 import {
@@ -72,6 +74,26 @@ describe("AnvilContainer", () => {
       );
       expect(new AnvilContainer().withArtifactsDir("artifacts")).toBeInstanceOf(
         AnvilContainer,
+      );
+    });
+  });
+
+  describe("withTestClient", () => {
+    it("accepts options or a configuring function", () => {
+      const options = new TestClientOptions().withTimeout(5);
+      const container = new AnvilContainer();
+      expect(container.testClientOptions).toBeInstanceOf(TestClientOptions);
+      expect(container.withTestClient(options)).toBe(container);
+      expect(container.testClientOptions).toBe(options);
+      container.withTestClient((client) => client.withCacheTime(3));
+      expect(container.testClientOptions.build().cacheTime).toBe(3);
+    });
+
+    it("explains a configuring function that forgot to return", () => {
+      expect(() =>
+        new AnvilContainer().withTestClient((() => undefined) as never),
+      ).toThrow(
+        /TestClientOptions\.withTestClient\(\): expected TestClientOptions or a function returning them \(did the callback forget to return\?\)/,
       );
     });
   });
@@ -320,6 +342,97 @@ describe("AnvilContainer", () => {
         /could not be initialised[\s\S]*--config-out/,
       );
       expect(fake.stopCalls).toHaveLength(1);
+    });
+
+    it("sets up the configured test client and resolves its default account", async () => {
+      const fake = new FakeStartedTestContainer("127.0.0.1", {
+        8545: rpc.port,
+      });
+      fakeStart(fake);
+      const started = await new AnvilContainer()
+        .withTestClient((client) =>
+          client.withAccount(1).withPollingInterval(25),
+        )
+        .start();
+      expect(started.testClient.account.address).toBe(rpc.accounts[1]);
+      expect(started.testClient.pollingInterval).toBe(25);
+      expect(started.testClientConfiguration.pollingInterval).toBe(25);
+    });
+
+    it("validates the test client against the options before touching Docker", async () => {
+      const spy = jest.spyOn(GenericContainer.prototype, "start");
+      const container = new AnvilContainer(
+        new AnvilOptions().account.withAccounts(2),
+      ).withTestClient(new TestClientOptions().withAccount(2));
+      await expect(container.start()).rejects.toBeInstanceOf(
+        AnvilTestClientConfigurationError,
+      );
+      expect(() => container.prepare()).toThrow(
+        /TestClientOptions\.withAccount\(\): dev account 2 does not exist/,
+      );
+      expect(spy).not.toHaveBeenCalled();
+    });
+
+    it("re-validates after withTestClient() replaces a prepared configuration", async () => {
+      const fake = new FakeStartedTestContainer("127.0.0.1", {
+        8545: rpc.port,
+      });
+      fakeStart(fake);
+      const container = new AnvilContainer(
+        new AnvilOptions().account.withAccounts(2),
+      );
+      container.prepare();
+      const withBadAccount = container.withTestClient((c) => c.withAccount(9));
+      await expect(withBadAccount.start()).rejects.toBeInstanceOf(
+        AnvilTestClientConfigurationError,
+      );
+      const started = await withBadAccount
+        .withTestClient((c) => c.withAccount(0))
+        .start();
+      expect(started.testClient.account.address).toBe(rpc.accounts[0]);
+    });
+
+    it("wraps default-account resolution failures into AnvilStartupError and stops", async () => {
+      rpc.accounts = [];
+      const fake = new FakeStartedTestContainer("127.0.0.1", {
+        8545: rpc.port,
+      });
+      fakeStart(fake);
+      await expect(
+        new AnvilContainer().withTestClient((c) => c.withAccount(0)).start(),
+      ).rejects.toThrow(
+        /could not be initialised: Default account 0 does not exist/,
+      );
+      expect(fake.stopCalls).toHaveLength(1);
+    });
+
+    it("lets subclasses provide another runtime through startRuntime()", async () => {
+      const fake = new FakeStartedTestContainer("127.0.0.1", {
+        8545: rpc.port,
+      });
+      const docker = jest.spyOn(GenericContainer.prototype, "start");
+      class LocalRuntimeContainer extends AnvilContainer {
+        public prepared?: readonly string[];
+        protected override startRuntime() {
+          this.prepared = this.prepare().args;
+          return Promise.resolve(fake);
+        }
+      }
+      const container = new LocalRuntimeContainer(
+        new AnvilOptions().account.withAccounts(3),
+      );
+      const started = await container
+        .withTestClient((c) => c.withAccount(2))
+        .start();
+      expect(docker).not.toHaveBeenCalled();
+      expect(container.prepared).toEqual([
+        "--host",
+        "0.0.0.0",
+        "--accounts",
+        "3",
+      ]);
+      expect(started.rpcUrl).toBe(rpc.url);
+      expect(started.testClient.account.address).toBe(rpc.accounts[2]);
     });
 
     it("reports a missing host file before touching Docker", async () => {

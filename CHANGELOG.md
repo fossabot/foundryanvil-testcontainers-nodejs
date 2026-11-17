@@ -1,5 +1,77 @@
 # Changelog
 
+## Unreleased
+
+Full viem test client integration: a pre-configured, strongly typed test
+client for every started node, with a fluent API, validated configuration and
+test lifecycle hooks.
+
+### Added
+
+- `StartedAnvilContainer.testClient`: viem test client (`mode: "anvil"`) with
+  every test, public and wallet action plus `anvilActions`; `client` remains
+  as an alias.
+- `anvilActions` (also usable on your own clients): `addBalance`,
+  `dealErc20`, `setErc20Allowance`, `setChainId` (the container's chain and
+  clients follow), `setTime`, `getIntervalMining`, `setAutoImpersonate`,
+  `dropAllTransactions`, `removePoolTransactions`, `rollback`, `reorg`,
+  `getNodeInfo`, `getMetadata`, `confirmTransaction`.
+- `TestClientOptions` + `AnvilContainer.withTestClient()`: transport (HTTP /
+  WebSocket), polling interval, cache time, timeout, retries, batching,
+  default account (anvil-signed, impersonated or locally signed) and chain
+  metadata (`withMulticall3()`). Validated against the anvil options in
+  `prepare()` before anything starts (`AnvilTestClientConfigurationError`).
+- Typed default account: `AnvilContainer<TAccount>` →
+  `StartedAnvilContainer<TAccount>` → `AnvilTestClient<TAccount>`;
+  `account` is optional on actions exactly when a default account exists.
+- `anvil.cheats`: fluent, awaitable chains covering every state-changing
+  viem test action and anvil extra, with step-level `CHEAT_FAILED` errors.
+- `useAnvil()`: starts / stops a node in `beforeAll` / `afterAll`, runs a
+  `setup`, restores the post-setup state after each test; the returned handle
+  throws `NOT_STARTED` when used too early.
+- `confirm()`: receipt with automatic mining when automine is off;
+  `AnvilTransactionRevertedError` with the revert reason.
+- `testClientFor()`, `createTestClient()`, `reset()`, `latestTimestamp()`,
+  `isStopped`, `testClientConfiguration`, `AnvilCheckpoint.id`.
+- `Duration` (`{ days: 7 }`) and `Timestamp` inputs; `AnvilTestClientError`
+  with `code`; `ANVIL_TEST_CLIENT_ERROR_CODES`.
+- `AnvilContainer.startRuntime()`: protected extension point to run the
+  prepared anvil outside Docker (e.g. a local binary in tests) with the
+  library's own validation, test client setup and error handling.
+- `examples/`: a separate npm project consuming the library through
+  `npm link`, with 15 tested advanced workflows (every viem test action,
+  anvil extra and `cheats` step, plus forking, tracing, simulation, EIP-7702
+  and node configuration) running on contract artifacts (ABI `.json` +
+  bytecode `.bin`);
+  part of the quality gate (`pnpm examples:test`,
+  `pnpm examples:e2e [--no-docker]`, `pnpm gate`).
+
+### Fixed
+
+- `reset()` without arguments failed on non-forked nodes (viem sends a fork
+  config); it now resets to genesis.
+- `revert()` silently continued when anvil answered `false` (unknown or
+  already used snapshot); it now throws `SNAPSHOT_NOT_FOUND`.
+- Using a client after `stop()` failed with an opaque fetch error; it now
+  throws `CONTAINER_STOPPED`, and WebSocket connections are closed on stop.
+- `useAnvil` per-test isolation leaked pending transactions into the next
+  test (reverting a snapshot keeps the mempool); it now empties the pool
+  before restoring.
+- `reset()` without arguments on a forked node detached it from the fork
+  (a bare `anvil_reset` leaves a non-forked chain at block 0 with stale
+  state); it now re-forks at the current fork block, read from
+  `anvil_nodeInfo`.
+
+### Changed
+
+- `increaseTime()`, `mine()`, `setIntervalMining()` accept durations;
+  `increaseTime()` resolves to the time offset in seconds (was `unknown`).
+- `addresses()` always asks the node (`eth_accounts`).
+- `sendEthTransaction()` / `deployContract()` check for an existing receipt
+  before consulting automine.
+- `AnvilNodeInfo` / `AnvilMetadata` moved to the test client types (still
+  exported from the package root).
+
 ## 0.3.0
 
 Complete, type-safe coverage of every Foundry Anvil CLI flag with a redesigned

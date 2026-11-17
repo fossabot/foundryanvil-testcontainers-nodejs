@@ -20,6 +20,7 @@
  *   SIGKILL after the timeout, like `docker stop`.
  */
 import { ChildProcess, spawn, spawnSync } from "node:child_process";
+import type { Account } from "viem";
 import * as fs from "node:fs";
 import * as net from "node:net";
 import * as os from "node:os";
@@ -333,7 +334,9 @@ export class LocalAnvilProcess implements StartedTestContainer {
  * `StartedAnvilContainer` backed by a local process: removal after a graceful
  * stop deletes the private working directory instead of a Docker container.
  */
-class LocalStartedAnvilContainer extends StartedAnvilContainer {
+class LocalStartedAnvilContainer<
+  TAccount extends Account | undefined,
+> extends StartedAnvilContainer<TAccount> {
   constructor(
     private readonly local: LocalAnvilProcess,
     details: ConstructorParameters<typeof StartedAnvilContainer>[1],
@@ -383,15 +386,21 @@ export function localizeArgs(
 }
 
 /**
- * Starts anvil locally with the configuration described by `options` and
- * returns the same `StartedAnvilContainer` API the Docker mode returns.
+ * Starts anvil locally with the configuration of `container` (anvil and
+ * test client options) and returns the same `StartedAnvilContainer` API the
+ * Docker mode returns.
  */
-export async function startLocalAnvil(
-  options: AnvilOptions,
+export async function startLocalAnvil<TAccount extends Account | undefined>(
+  container: AnvilContainer<TAccount> | AnvilOptions,
   settings: { startupTimeoutMs?: number; artifactsDir?: string } = {},
-): Promise<StartedAnvilContainer> {
-  // Same validation (options + host files) as the Docker path.
-  const configuration = new AnvilContainer(options).prepare();
+): Promise<StartedAnvilContainer<TAccount>> {
+  const anvilContainer =
+    container instanceof AnvilContainer
+      ? container
+      : new AnvilContainer(container);
+  // Same validation (anvil options, test client options, host files) as the Docker path.
+  const configuration = anvilContainer.prepare();
+  const testClient = anvilContainer.testClientOptions.build(configuration);
   const binary = requireAnvilBinary();
   const workDir = fs.mkdtempSync(path.join(os.tmpdir(), "anvil-local-"));
   const hostPort = await freePort();
@@ -432,16 +441,16 @@ export async function startLocalAnvil(
           ? Number.parseInt(body.result, 16)
           : 31337;
     }
-    const started = new LocalStartedAnvilContainer(local, {
+    const started = new LocalStartedAnvilContainer<TAccount>(local, {
       rpcUrl,
       chainId,
       configuration,
+      testClient,
       artifactsDir:
         settings.artifactsDir ??
         path.resolve(process.cwd(), "test", "artifacts"),
     });
-    await started.exportFiles("start");
-    return started;
+    return await started.initialize();
   } catch (error) {
     await local.terminate(0);
     local.cleanup();

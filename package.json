@@ -43,9 +43,13 @@
     "test:e2e": "node scripts/e2e.mjs",
     "test:coverage": "jest --colors --injectGlobals --coverage test/unit",
     "eslint": "eslint \"{src,apps,libs,test}/**/*.ts\" --fix",
+    "examples:setup": "pnpm build && npm link && cd examples && npm install && npm run link:library",
+    "examples:unit": "pnpm examples:setup && cd examples && npm run typecheck && npm run lint && npm run test:unit",
+    "examples:e2e": "pnpm examples:setup && cd examples && npm run typecheck && npm run lint && npm run test:e2e",
     "typecheck": "tsc --noEmit",
     "prepublishOnly": "pnpm run build",
-    "check": "pnpm build && pnpm typecheck && pnpm eslint && pnpm test"
+    "check": "pnpm build && pnpm typecheck && pnpm eslint && pnpm test && pnpm examples:test",
+    "gate": "pnpm build && pnpm typecheck && pnpm eslint && pnpm test:unit && pnpm test:e2e --no-docker && pnpm examples:unit && pnpm examples:e2e --no-docker"
   },
   "dependencies": {
     "testcontainers": "^12.2.1",
@@ -106,7 +110,14 @@
           }
         }
       ]
-    }
+    },
+    "testPathIgnorePatterns": [
+      "/node_modules/",
+      "<rootDir>/examples/"
+    ],
+    "modulePathIgnorePatterns": [
+      "<rootDir>/examples/"
+    ]
   },
   "engines": {
     "node": ">=22"

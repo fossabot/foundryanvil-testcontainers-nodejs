@@ -8,7 +8,8 @@ import { spawn } from "node:child_process";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { GenericContainer, Wait } from "testcontainers";
+import { GenericContainer, Network, Wait } from "testcontainers";
+import type { Account } from "viem";
 import {
   AnvilContainer,
   AnvilOptions,
@@ -36,13 +37,94 @@ export function startAnvil(
   options: AnvilOptions = new AnvilOptions(),
   settings: { startupTimeoutMs?: number } = {},
 ): Promise<StartedAnvilContainer> {
+  return startContainer(new AnvilContainer(options), settings);
+}
+
+/**
+ * Starts a configured `AnvilContainer` (anvil + test client options) in the
+ * active e2e mode: `container.start()` in Docker mode, a local process with
+ * the same validation and test client setup in `--no-docker` mode.
+ */
+export function startContainer<TAccount extends Account | undefined>(
+  container: AnvilContainer<TAccount>,
+  settings: { startupTimeoutMs?: number } = {},
+): Promise<StartedAnvilContainer<TAccount>> {
   if (E2E_MODE === "local") {
-    return startLocalAnvil(options, settings);
+    return startLocalAnvil(container, settings);
   }
-  const container = new AnvilContainer(options);
   if (settings.startupTimeoutMs)
     container.withStartupTimeout(settings.startupTimeoutMs);
   return container.start();
+}
+
+/**
+ * Starts an upstream node and a second node forking it, reachable in both
+ * modes: Docker containers share a network (the fork URL uses the upstream's
+ * alias), local processes use the loopback URL.
+ */
+export async function startForkPair(
+  forkOptions: (forkUrl: string) => AnvilOptions,
+  prepareUpstream: (upstream: StartedAnvilContainer) => Promise<void> = () =>
+    Promise.resolve(),
+): Promise<{
+  upstream: StartedAnvilContainer;
+  fork: StartedAnvilContainer;
+  forkUrl: string;
+  stop(): Promise<void>;
+}> {
+  if (E2E_MODE === "local") {
+    const upstream = await startContainer(new AnvilContainer());
+    const fork = await prepareUpstream(upstream)
+      .then(() =>
+        startContainer(new AnvilContainer(forkOptions(upstream.rpcUrl))),
+      )
+      .catch(async (error: unknown) => {
+        await upstream.stop();
+        throw error;
+      });
+    return {
+      upstream,
+      fork,
+      forkUrl: upstream.rpcUrl,
+      stop: async () => {
+        await fork.stop();
+        await upstream.stop();
+      },
+    };
+  }
+  const network = await new Network().start();
+  const forkUrl = "http://upstream:8545";
+  const upstream = await new AnvilContainer()
+    .withNetwork(network)
+    .withNetworkAliases("upstream")
+    .start();
+  const fork = await prepareUpstream(upstream)
+    .then(() =>
+      new AnvilContainer(forkOptions(forkUrl)).withNetwork(network).start(),
+    )
+    .catch(async (error: unknown) => {
+      await upstream.stop();
+      await network.stop();
+      throw error;
+    });
+  return {
+    upstream,
+    fork,
+    forkUrl,
+    stop: async () => {
+      await fork.stop();
+      await upstream.stop();
+      await network.stop();
+    },
+  };
+}
+
+/** `useAnvil()`-compatible startable for the active e2e mode. */
+export function startable<TAccount extends Account | undefined>(
+  container: AnvilContainer<TAccount>,
+  settings: { startupTimeoutMs?: number } = {},
+): { start(): Promise<StartedAnvilContainer<TAccount>> } {
+  return { start: () => startContainer(container, settings) };
 }
 
 /**

@@ -5,7 +5,16 @@ import {
   StartedTestContainer,
   WaitStrategy,
 } from "testcontainers";
-import { AnvilConfigurationError, AnvilStartupError } from "../errors";
+import type { Account } from "viem";
+import {
+  type TestClientConfiguration,
+  TestClientOptions,
+} from "../client/test-client-options";
+import {
+  AnvilConfigurationError,
+  AnvilStartupError,
+  AnvilTestClientConfigurationError,
+} from "../errors";
 import { AnvilOptions } from "../options/anvil-options";
 import {
   ANVIL_EXECUTABLE,
@@ -21,18 +30,27 @@ export const DEFAULT_ANVIL_IMAGE = "ghcr.io/foundry-rs/foundry:v1.6.0-rc1";
 
 /**
  * Testcontainers module running anvil with an {@link AnvilOptions}
- * configuration. `start()` validates the options, copies input files, starts
- * anvil and waits for JSON-RPC. All `GenericContainer` builders remain
+ * configuration and a pre-configured viem test client
+ * ({@link withTestClient}). `start()` validates both, copies input files,
+ * starts anvil and waits for JSON-RPC. All `GenericContainer` builders remain
  * available (`withStartupTimeout`, `withNetwork`, …).
  *
+ * `TAccount` is the test client's default account type (see
+ * {@link withTestClient}).
+ *
  * @example
- * const anvil = await new AnvilContainer(new AnvilOptions().mining.withNoMining()).start();
- * const [alice, bob] = await anvil.addresses();
- * await anvil.sendEthTransaction(alice, bob, "1");
+ * const anvil = await new AnvilContainer(new AnvilOptions().mining.withNoMining())
+ *   .withTestClient((client) => client.withAccount(0))
+ *   .start();
+ * await anvil.confirm(anvil.testClient.sendTransaction({ to: bob, value: parseEther("1") }));
  * await anvil.stop();
  */
-export class AnvilContainer extends GenericContainer {
+export class AnvilContainer<
+  TAccount extends Account | undefined = undefined,
+> extends GenericContainer {
   private readonly options: AnvilOptions;
+  private clientOptions: TestClientOptions<TAccount> = new TestClientOptions();
+  private clientConfiguration?: TestClientConfiguration;
   private artifactsDir = path.resolve(DEFAULT_ARTIFACTS_DIR);
   private customWaitStrategy = false;
   private readyStrategy?: AnvilReadyWaitStrategy;
@@ -59,6 +77,38 @@ export class AnvilContainer extends GenericContainer {
     return this.options;
   }
 
+  /** Test client settings this container uses. */
+  public get testClientOptions(): TestClientOptions<TAccount> {
+    return this.clientOptions;
+  }
+
+  /**
+   * Configures the test client exposed as `StartedAnvilContainer.testClient`:
+   * transport, polling, timeouts, retries, batching, default account and
+   * chain metadata. Validated against the anvil options before start.
+   * @example new AnvilContainer(options).withTestClient((c) => c.withAccount(0).withPollingInterval(50))
+   */
+  public withTestClient<A extends Account | undefined>(
+    options:
+      | TestClientOptions<A>
+      | ((options: TestClientOptions) => TestClientOptions<A>),
+  ): AnvilContainer<A> {
+    const resolved =
+      typeof options === "function"
+        ? options(new TestClientOptions())
+        : options;
+    if (!(resolved instanceof TestClientOptions)) {
+      throw new AnvilTestClientConfigurationError(
+        "withTestClient",
+        "expected TestClientOptions or a function returning them (did the callback forget to return?)",
+      );
+    }
+    const self = this as unknown as AnvilContainer<A>;
+    self.clientOptions = resolved;
+    self.clientConfiguration = undefined;
+    return self;
+  }
+
   /** Base directory for `contractAbi()` / `contractBytecode()` (default `<cwd>/test/artifacts`). */
   public withArtifactsDir(directory: string): this {
     if (typeof directory !== "string" || directory.trim().length === 0) {
@@ -75,11 +125,14 @@ export class AnvilContainer extends GenericContainer {
   }
 
   /**
-   * Validates the options and applies entrypoint, command, port, file copies
-   * and wait strategy. Called by {@link start}; idempotent; needs no Docker.
+   * Validates the anvil and test client options and applies entrypoint,
+   * command, port, file copies and wait strategy. Called by {@link start};
+   * idempotent; needs no Docker.
+   * @throws AnvilConfigurationError (incl. AnvilTestClientConfigurationError)
    */
   public prepare(): AnvilConfiguration {
     const configuration = this.options.build();
+    this.clientConfiguration = this.clientOptions.build(configuration);
     const filesToCopy = [];
     for (const transfer of configuration.fileImports) {
       const exists = fs.existsSync(transfer.hostPath);
@@ -123,15 +176,33 @@ export class AnvilContainer extends GenericContainer {
   }
 
   /**
-   * Starts anvil and waits until it serves JSON-RPC.
-   * @throws AnvilConfigurationError for invalid options.
+   * Starts the prepared container and waits for the wait strategy (Docker via
+   * Testcontainers). Extension point for other runtimes, e.g. a local anvil
+   * binary in tests without Docker: return any `StartedTestContainer` whose
+   * `getHost()` / `getMappedPort(port)` reach anvil's JSON-RPC once it is
+   * ready (run `this.prepare()` for the validated command line). Validation,
+   * chain id resolution, test client setup and error handling stay the same.
+   * Stop-time file exports (`--dump-state`, `--state`) additionally need
+   * Docker to remove the stopped container.
+   */
+  protected startRuntime(): Promise<StartedTestContainer> {
+    return super.start();
+  }
+
+  /**
+   * Starts anvil, waits until it serves JSON-RPC and sets up the test client.
+   * @throws AnvilConfigurationError for invalid options (before anything starts).
    * @throws AnvilStartupError when anvil exits or never gets ready (includes command and logs).
    */
-  public override async start(): Promise<StartedAnvilContainer> {
-    const configuration = this.configuration ?? this.prepare();
+  public override async start(): Promise<StartedAnvilContainer<TAccount>> {
+    const configuration =
+      this.configuration && this.clientConfiguration
+        ? this.configuration
+        : this.prepare();
+    const testClient = this.clientConfiguration;
     let started: StartedTestContainer;
     try {
-      started = await super.start();
+      started = await this.startRuntime();
     } catch (error: unknown) {
       if (error instanceof AnvilStartupError) throw error;
       throw new AnvilStartupError(
@@ -141,7 +212,7 @@ export class AnvilContainer extends GenericContainer {
     }
     try {
       const rpcUrl = `http://${started.getHost()}:${started.getMappedPort(configuration.port)}`;
-      const anvil = new StartedAnvilContainer(started, {
+      const anvil = new StartedAnvilContainer<TAccount>(started, {
         rpcUrl,
         // Reuse the readiness probe's answer instead of another round trip.
         chainId:
@@ -150,9 +221,9 @@ export class AnvilContainer extends GenericContainer {
           (await fetchChainId(rpcUrl)),
         configuration,
         artifactsDir: this.artifactsDir,
+        testClient,
       });
-      await anvil.exportFiles("start");
-      return anvil;
+      return await anvil.initialize();
     } catch (error: unknown) {
       await started.stop().catch(() => undefined);
       throw new AnvilStartupError(

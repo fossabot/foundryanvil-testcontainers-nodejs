@@ -12,7 +12,21 @@
 | `pnpm test:e2e`                 | End-to-end tests against real anvil **in Docker** (default, CI/CD) |
 | `pnpm test:e2e --no-docker`     | End-to-end tests against a **local anvil binary** – bundled, no Docker or Foundry install needed (local testing only) |
 | `pnpm test:coverage`            | Unit tests with coverage (thresholds enforced)                   |
-| `pnpm check`                    | Full quality gate: build, typecheck, lint, test                  |
+| `pnpm examples:setup`           | Build the library if stale, install `examples/` (`npm ci`) and `npm link` the library |
+| `pnpm examples:test`            | Examples: setup + typecheck + lint + unit tests                  |
+| `pnpm examples:e2e`             | Examples: workflows against anvil in Docker (`--no-docker`: local binary) |
+| `pnpm check`                    | Build, typecheck, lint, all tests, examples' static checks and unit tests |
+| `pnpm gate`                     | The baseline quality gate (see below)                            |
+
+### Baseline quality gate
+
+```shell
+pnpm build && pnpm typecheck && pnpm eslint && pnpm test:unit && pnpm test:e2e --no-docker \
+  && pnpm examples:test && pnpm examples:e2e --no-docker
+```
+
+`pnpm gate` runs exactly this. CI should additionally run the Docker modes
+(`pnpm test:e2e`, `pnpm examples:e2e`).
 
 ### End-to-end tests
 
@@ -20,6 +34,16 @@ The e2e suite (`test/e2e`) starts real anvil nodes and covers the container
 lifecycle, transactions, accounts & keys, impersonation, time travel,
 snapshots, state load/dump/persistence, genesis files, quiet/JSON logging,
 fail-fast startup errors and CLI parity with the real anvil parser.
+
+`test/e2e/test-client.e2e.test.ts` exercises the viem test client through
+`useAnvil()`: every viem test action, every anvil extra, cheats, transports
+(HTTP, batching, WebSocket subscriptions), node- and locally-signed default
+accounts, pre-start validation, reset, strict snapshots and use-after-stop.
+Its last shared-node test fails if any viem test action was not called (the
+list is read from the installed viem, so upgrades that add actions fail until
+they are mapped). Unit tests check that every mutating viem test action has a
+`cheats` step and that the README documents every action, extra, step,
+setting and error code.
 
 **Docker mode (default)** – `pnpm test:e2e` runs everything through
 `AnvilContainer` / Testcontainers using the default image. This is what CI/CD
@@ -57,6 +81,32 @@ The fork test runs when `ANVIL_FORK_URL` (and optionally
 `ANVIL_FORK_BLOCK_NUMBER`) is set — see `.env.example`. `ANVIL_E2E_MODE`
 (`docker` / `local` / `skip`) can be set to control plain `pnpm test` runs.
 
+### Examples project
+
+`examples/` is a separate npm project (its own `package.json`,
+`package-lock.json`, TypeScript, ESLint and Jest configuration) that
+consumes the library through `npm link`, like an end user's project. It is
+excluded from the root's TypeScript, ESLint and Jest runs and from the pnpm
+workspace.
+
+`scripts/examples.mjs` (behind the `pnpm examples:*` scripts) rebuilds the
+library when `dist/` is older than its inputs, runs `npm ci` when the
+examples' lockfile changed, re-links (installs remove links) and then runs
+the task; pnpm's `npm_*` environment is not passed to npm. Linking uses a
+project-local npm prefix (`examples/.npm-link/`), so the global prefix is
+never touched. Its unit tests guard the link (symlink to this checkout, fresh
+`dist/`, no dependency leaks, no lifecycle scripts in the library that
+`npm link` would run), the contract artifacts (`examples/artifacts/<Name>/`
+ABI `.json` + creation bytecode `.bin`: both present, ABI and bytecode
+consistent; the repository contains no Solidity sources), the API
+coverage (every viem test action, anvil extra, `cheats` step,
+`TestClientOptions` setting and `StartedAnvilContainer` member is called by
+an example; the README's coverage map matches the code) and the README
+samples (generated from `// #region` blocks of the tests:
+`npm run docs:sync` in `examples/`). Its `--no-docker` mode overrides
+`AnvilContainer.startRuntime()` with a local anvil process. See
+[examples/README.md](examples/README.md).
+
 ### Module formats
 
 - `dist/index.js` – ESM
@@ -92,6 +142,13 @@ cast block-number
 | Mining, time, fees, execution limits | `mining.*`, `evm.withGasLimit()/withGasPrice()/withBlockBaseFeePerGas()/withCodeSizeLimit()/withMemoryLimit()`, `mine()`, `increaseTime()`, `setNextBlockTimestamp()`, `setMinGasPrice()`, `setBlockGasLimit()` |
 | State loading & dump reports | `state.withLoadState()/withDumpState()/withState()/withStateInterval()/withPreserveHistoricalStates()`, `dumpStateToFile()`, `loadStateFromFile()`, `state.withConfigOut()` |
 | RPC controls, tracing, diagnostics | `evm.withPrintTraces()/withStepsTracing()`, `logs.*`, `rpc()`, `nodeInfo()`, `metadata()`, `setLoggingEnabled()`, `logText()` |
+| Pre-configured viem test client | `StartedAnvilContainer.testClient` (test + public + wallet actions + `anvilActions`), typed default account (`AnvilContainer<TAccount>`) |
+| Test client config & pre-start validation | `TestClientOptions` (transport, polling, cache, timeout, retries, batching, default account, chain metadata) via `AnvilContainer.withTestClient()`, checked in `prepare()` |
+| Account & on-chain state controls | `cheats.setBalance/addBalance/dealErc20/setErc20Allowance/setCode/setNonce/setStorageAt/impersonate…`, `testClientFor()` |
+| Contract calls & transactions | viem `readContract/simulateContract/writeContract/deployContract/sendTransaction/sendUnsignedTransaction`, `confirm()` with revert reasons |
+| Block, time, chain & RPC config | `cheats.mine/setAutomine/setIntervalMining/increaseTime/setNextBlockTimestamp/setTime/setBlockTimestampInterval/setCoinbase/setBlockGasLimit/setNextBlockBaseFeePerGas/setMinGasPrice/setChainId/setRpcUrl`, `rollback()`, `reorg()` |
+| Snapshots, reset, lifecycle | `snapshot()` / strict `revert()`, `withSnapshot()`, `checkpoint()`, `reset()`, `useAnvil()` (hooks + per-test isolation), `CONTAINER_STOPPED` after `stop()` |
+| Transaction pool | `getTxpoolContent/Status`, `inspectTxpool`, `cheats.dropTransaction/dropAllTransactions/removePoolTransactions` |
 
 
 ## Test speed
