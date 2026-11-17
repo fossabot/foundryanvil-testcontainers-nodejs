@@ -51,7 +51,7 @@
     "gate": "pnpm build && pnpm typecheck && pnpm eslint && pnpm test:unit && pnpm test:e2e --no-docker && pnpm examples:unit && pnpm examples:e2e --no-docker"
   },
   "dependencies": {
-    "testcontainers": "^12.2.1",
+    "testcontainers": "^12.2.0",
     "viem": "^2.57.20"
   },
   "devDependencies": {
