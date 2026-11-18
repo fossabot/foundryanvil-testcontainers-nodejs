@@ -569,4 +569,4 @@ and release steps: see [CONTRIBUTING.md](./CONTRIBUTING.md).
 
 ----
 
-Maintained by [Hella Labs](https://hella.website/) · MIT
+Maintained by [Hella Labs](https://hellalabs.dev/) · MIT
