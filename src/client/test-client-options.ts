@@ -143,7 +143,7 @@ function isLocalAccount(value: unknown): value is LocalAccount {
  * against the anvil flags before start. `TAccount`: the default account's type.
  * @example
  * new AnvilContainer(options).withTestClient((client) => client.withAccount(0).withTransport("webSocket"));
- * @see {@link https://hella-web3.github.io/foundryanvil-testcontainers-nodejs/docs/tasks/configure/test-client | Configure the test client} (docs)
+ * @see {@link https://hella-labs.github.io/foundryanvil-testcontainers-nodejs/docs/tasks/configure/test-client | Configure the test client} (docs)
  */
 export class TestClientOptions<
   TAccount extends Account | undefined = undefined,

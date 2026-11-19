@@ -41,7 +41,7 @@ function seconds(label: string, value: Duration): number {
  * Queued state changes that run in order, once, when awaited (or `run()`).
  * A failing step rejects with `CHEAT_FAILED` and skips the rest.
  * @example await anvil.cheats.setBalanceEther(whale, 1_000).impersonate(whale).increaseTime({ days: 7 }).mine();
- * @see {@link https://hella-web3.github.io/foundryanvil-testcontainers-nodejs/docs/reference/cheats | Every cheats step} (docs)
+ * @see {@link https://hella-labs.github.io/foundryanvil-testcontainers-nodejs/docs/reference/cheats | Every cheats step} (docs)
  */
 export class AnvilCheats<
   TAccount extends Account | undefined = undefined,

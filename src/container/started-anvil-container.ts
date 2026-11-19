@@ -91,7 +91,7 @@ export type TestClientAccountInput = Address | Account | { address: Address };
  * A running anvil node: a pre-configured viem {@link testClient}, fluent
  * {@link cheats}, and helpers for accounts, transactions, time, snapshots,
  * state files and diagnostics. `TAccount`: the default account's type.
- * @see {@link https://hella-web3.github.io/foundryanvil-testcontainers-nodejs/docs/reference/started-anvil-container | StartedAnvilContainer reference} (docs)
+ * @see {@link https://hella-labs.github.io/foundryanvil-testcontainers-nodejs/docs/reference/started-anvil-container | StartedAnvilContainer reference} (docs)
  */
 export class StartedAnvilContainer<
   TAccount extends Account | undefined = undefined,
@@ -99,7 +99,6 @@ export class StartedAnvilContainer<
   private readonly details: StartedAnvilContainerDetails;
   private readonly clientConfiguration: TestClientConfiguration;
   private readonly _chain: Chain;
-  private _testClient: AnvilTestClient<TAccount>;
   private readonly webSocketClients = new Set<{
     transport: { getRpcClient?: () => Promise<{ close(): void }> };
   }>();
@@ -131,19 +130,14 @@ export class StartedAnvilContainer<
     });
   }
 
-  /** @internal Finishes `AnvilContainer.start()`: `--config-out`, default account. */
-  public async initialize(): Promise<this> {
-    await this.exportFiles("start");
-    const spec = this.clientConfiguration.account;
-    if (spec?.kind === "address" && spec.impersonate) {
-      await this.impersonate(spec.address);
-    }
-    if (spec?.kind === "index") {
-      this._testClient = this.buildClient(this.clientConfiguration, {
-        account: await this.resolveAccount(spec),
-      });
-    }
-    return this;
+  private _testClient: AnvilTestClient<TAccount>;
+
+  /**
+   * viem test client (`mode: "anvil"`) with public, wallet and {@link AnvilActions}.
+   * @example await anvil.testClient.setCode({ address, bytecode })
+   */
+  public get testClient(): AnvilTestClient<TAccount> {
+    return this._testClient;
   }
 
   /** HTTP JSON-RPC URL reachable from the host. */
@@ -176,14 +170,6 @@ export class StartedAnvilContainer<
     return this.clientConfiguration;
   }
 
-  /**
-   * viem test client (`mode: "anvil"`) with public, wallet and {@link AnvilActions}.
-   * @example await anvil.testClient.setCode({ address, bytecode })
-   */
-  public get testClient(): AnvilTestClient<TAccount> {
-    return this._testClient;
-  }
-
   /** Alias of {@link testClient}. */
   public get client(): AnvilTestClient<TAccount> {
     return this._testClient;
@@ -195,6 +181,26 @@ export class StartedAnvilContainer<
    */
   public get cheats(): AnvilCheats<TAccount> {
     return new AnvilCheats(this._testClient);
+  }
+
+  /** `true` once {@link stop} was called. */
+  public get isStopped(): boolean {
+    return this.stopped;
+  }
+
+  /** @internal Finishes `AnvilContainer.start()`: `--config-out`, default account. */
+  public async initialize(): Promise<this> {
+    await this.exportFiles("start");
+    const spec = this.clientConfiguration.account;
+    if (spec?.kind === "address" && spec.impersonate) {
+      await this.impersonate(spec.address);
+    }
+    if (spec?.kind === "index") {
+      this._testClient = this.buildClient(this.clientConfiguration, {
+        account: await this.resolveAccount(spec),
+      });
+    }
+    return this;
   }
 
   /**
@@ -236,6 +242,8 @@ export class StartedAnvilContainer<
     });
   }
 
+  // -------------------------------------------------------------- accounts
+
   /**
    * Raw JSON-RPC request.
    * @example await anvil.rpc("debug_traceTransaction", [hash, { tracer: "callTracer" }])
@@ -246,8 +254,6 @@ export class StartedAnvilContainer<
   ): Promise<T> {
     return this._testClient.request({ method, params } as never);
   }
-
-  // -------------------------------------------------------------- accounts
 
   /** Dev account addresses (`eth_accounts`), checksummed. */
   public async addresses(): Promise<Address[]> {
@@ -312,12 +318,12 @@ export class StartedAnvilContainer<
     }
   }
 
+  // ---------------------------------------------------------- transactions
+
   /** Toggles impersonation of every sender (`anvil_autoImpersonateAccount`). */
   public setAutoImpersonate(enabled: boolean): Promise<void> {
     return this._testClient.setAutoImpersonate(enabled);
   }
-
-  // ---------------------------------------------------------- transactions
 
   /** Sends Ether (decimal string) and returns the receipt. */
   public async sendEthTransaction(
@@ -349,6 +355,8 @@ export class StartedAnvilContainer<
     return this.confirm(hash, { throwOnRevert: false });
   }
 
+  // ------------------------------------------------------- mining and time
+
   /**
    * Receipt of a transaction; mines a block when automine is off.
    * @throws AnvilTransactionRevertedError when it reverted (unless `throwOnRevert: false`)
@@ -363,8 +371,6 @@ export class StartedAnvilContainer<
       hash: await hash,
     });
   }
-
-  // ------------------------------------------------------- mining and time
 
   /** Mines `blocks` (default 1), optionally `intervalSeconds` apart (`anvil_mine`). */
   public mine(blocks = 1, intervalSeconds?: Duration): Promise<void> {
@@ -424,12 +430,12 @@ export class StartedAnvilContainer<
     return this._testClient.setNextBlockBaseFeePerGas({ baseFeePerGas: wei });
   }
 
+  // ----------------------------------------------------------------- state
+
   /** `evm_setBlockGasLimit`. */
   public setBlockGasLimit(gasLimit: bigint): Promise<void> {
     return this._testClient.setBlockGasLimit({ gasLimit });
   }
-
-  // ----------------------------------------------------------------- state
 
   /** `evm_snapshot`; returns the id for {@link revert}. */
   public snapshot(): Promise<HexString> {
@@ -502,6 +508,8 @@ export class StartedAnvilContainer<
     await this._testClient.loadState({ state });
   }
 
+  // ------------------------------------------------------------ diagnostics
+
   /** Loads a state file (JSON or dump hex). */
   public loadStateFromFile(hostPath: string): Promise<void> {
     const content = fs.readFileSync(path.resolve(hostPath));
@@ -510,8 +518,6 @@ export class StartedAnvilContainer<
       /^0x[0-9a-fA-F]*$/.test(text) ? (text as HexString) : toHex(content),
     );
   }
-
-  // ------------------------------------------------------------ diagnostics
 
   /** `anvil_nodeInfo`. */
   public nodeInfo(): Promise<AnvilNodeInfo> {
@@ -538,16 +544,11 @@ export class StartedAnvilContainer<
     return loadContractAbi(location, this.details.artifactsDir);
   }
 
+  // -------------------------------------------------------------- lifecycle
+
   /** Bytecode from the artifacts dir. */
   public contractBytecode(location: string): HexString {
     return loadContractBytecode(location, this.details.artifactsDir);
-  }
-
-  // -------------------------------------------------------------- lifecycle
-
-  /** `true` once {@link stop} was called. */
-  public get isStopped(): boolean {
-    return this.stopped;
   }
 
   /**
@@ -581,6 +582,13 @@ export class StartedAnvilContainer<
     return stopped;
   }
 
+  /** @internal Copies the container → host files due at `when`. */
+  public async exportFiles(when: FileExport["when"]): Promise<void> {
+    for (const transfer of this.configuration.fileExports) {
+      if (transfer.when === when) await copyFromContainer(this, transfer);
+    }
+  }
+
   /** @internal Marks the clients unusable and closes WebSocket connections. */
   protected override async containerStopping(): Promise<void> {
     this.stopped = true;
@@ -595,13 +603,6 @@ export class StartedAnvilContainer<
         }
       }),
     );
-  }
-
-  /** @internal Copies the container → host files due at `when`. */
-  public async exportFiles(when: FileExport["when"]): Promise<void> {
-    for (const transfer of this.configuration.fileExports) {
-      if (transfer.when === when) await copyFromContainer(this, transfer);
-    }
   }
 
   /** Removes a container stopped with `remove: false`; override for non-Docker runtimes. */

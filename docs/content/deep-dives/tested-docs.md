@@ -8,7 +8,7 @@ No code on this site is written by hand.
 ## Code samples ← tested example regions
 
 Every sample is a `// #region` of
-[`examples/`](https://github.com/hella-web3/foundryanvil-testcontainers-nodejs/tree/main/examples),
+[`examples/`](https://github.com/hella-labs/foundryanvil-testcontainers-nodejs/tree/main/examples),
 which is type-checked, linted and tested against real anvil nodes in CI. A
 fence links to its region:
 
@@ -44,4 +44,4 @@ error codes, enums, constants.
 2. Reference it: `` ```ts snippet="examples/<file>#my-sample" `` (empty body).
 3. Run `pnpm docs:sync`, then `pnpm docs:unit`.
 
-Scripts: [`docs/README.md`](https://github.com/hella-web3/foundryanvil-testcontainers-nodejs/blob/main/docs/README.md).
+Scripts: [`docs/README.md`](https://github.com/hella-labs/foundryanvil-testcontainers-nodejs/blob/main/docs/README.md).

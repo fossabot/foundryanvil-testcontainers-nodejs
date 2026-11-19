@@ -19,7 +19,7 @@ import { loadPages, type Page } from "../support/site.mts";
 
 const BUILD = process.env.DOCS_BUILD_DIR ?? path.join(DOCS_ROOT, "build");
 // The same defaults and overrides as docusaurus.config.ts.
-const SITE_URL = process.env.DOCS_URL || "https://hella-web3.github.io";
+const SITE_URL = process.env.DOCS_URL || "https://hella-labs.github.io";
 const BASE_URL = `${(process.env.DOCS_BASE_URL || "/foundryanvil-testcontainers-nodejs/").replace(/\/?$/, "/")}`;
 const escape = (text: string) => text.replace(/[.*+?^${}()|[\]\\/]/g, "\\$&");
 const resolver = new RegionResolver(REPO_ROOT);

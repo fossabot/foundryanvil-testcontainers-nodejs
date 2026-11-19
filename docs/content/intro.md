@@ -33,7 +33,7 @@ New here? Start with the [quick start](get-started/quick-start.md).
 ## How to read the samples
 
 Every sample is a tested `#region` of
-[`examples/`](https://github.com/hella-web3/foundryanvil-testcontainers-nodejs/tree/main/examples),
+[`examples/`](https://github.com/hella-labs/foundryanvil-testcontainers-nodejs/tree/main/examples),
 linked under the sample.
 
 - `anvil` (or `node`, `fork`…) is a started node, usually from
@@ -41,4 +41,4 @@ linked under the sample.
 - `expect` and `it` are Jest's; any runner works.
 - `deployToken`, `mint`, `balanceOf`, `exampleToken`, `expectRevert` and
   `triggerUntil` are helpers from
-  [`examples/src`](https://github.com/hella-web3/foundryanvil-testcontainers-nodejs/tree/main/examples/src).
+  [`examples/src`](https://github.com/hella-labs/foundryanvil-testcontainers-nodejs/tree/main/examples/src).

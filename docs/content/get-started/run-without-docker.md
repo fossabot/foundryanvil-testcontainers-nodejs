@@ -36,7 +36,7 @@ export function useLocalRuntime(): void {
 if (E2E_MODE === "local") useLocalRuntime();
 ```
 
-Copy [`local-anvil.ts`](https://github.com/hella-web3/foundryanvil-testcontainers-nodejs/blob/main/examples/test/support/local-anvil.ts);
+Copy [`local-anvil.ts`](https://github.com/hella-labs/foundryanvil-testcontainers-nodejs/blob/main/examples/test/support/local-anvil.ts);
 get a binary from `@foundry-rs/anvil` or `foundryup`:
 
 ```shell

@@ -46,7 +46,7 @@ describe("project layout", () => {
     };
     assert.equal(
       githubSourceUrl(region),
-      "https://github.com/hella-web3/foundryanvil-testcontainers-nodejs/blob/main/examples/test/e2e/a.e2e.test.ts#L3-L9",
+      "https://github.com/hella-labs/foundryanvil-testcontainers-nodejs/blob/main/examples/test/e2e/a.e2e.test.ts#L3-L9",
     );
     assert.equal(
       githubSourceUrl(region, "https://git.test/r", "dev"),

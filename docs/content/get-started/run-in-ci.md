@@ -35,7 +35,7 @@ it("uses the started node", async () => {
 - **Forks** read the upstream URL from a secret, e.g. `process.env.MAINNET_RPC_URL`.
 
 Example: this repository's
-[`main.yml`](https://github.com/hella-web3/foundryanvil-testcontainers-nodejs/blob/main/.github/workflows/main.yml).
+[`main.yml`](https://github.com/hella-labs/foundryanvil-testcontainers-nodejs/blob/main/.github/workflows/main.yml).
 
 ## Deep dive
 

@@ -4,7 +4,7 @@ Real, tested workflows for
 [`@hellaweb3/foundryanvil-testcontainers-nodejs`](../README.md): anvil in a
 Testcontainer plus its pre-configured, strongly typed viem test client.
 
-> 📖 **Looking for a specific task?** The [documentation site](https://hella-web3.github.io/foundryanvil-testcontainers-nodejs/)
+> 📖 **Looking for a specific task?** The [documentation site](https://hella-labs.github.io/foundryanvil-testcontainers-nodejs/)
 > organises these examples by what you want to do — every code sample there
 > is synced from the `#region` blocks of these files and checked in CI.
 

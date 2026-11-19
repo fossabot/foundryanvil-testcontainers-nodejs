@@ -1,7 +1,7 @@
 /**
  * Foundry Anvil in Testcontainers: {@link AnvilOptions}, {@link AnvilContainer},
  * {@link StartedAnvilContainer} with a viem {@link AnvilTestClient}, and {@link useAnvil}.
- * Docs: https://hella-web3.github.io/foundryanvil-testcontainers-nodejs/
+ * Docs: https://hella-labs.github.io/foundryanvil-testcontainers-nodejs/
  * @packageDocumentation
  */
 export { AnvilOptions } from "./options/anvil-options";

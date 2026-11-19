@@ -34,7 +34,7 @@ export const DEFAULT_ANVIL_IMAGE = "ghcr.io/foundry-rs/foundry:v1.6.0-rc1";
  * `TAccount`: the default account's type.
  * @example
  * const anvil = await new AnvilContainer(options).withTestClient((c) => c.withAccount(0)).start();
- * @see {@link https://hella-web3.github.io/foundryanvil-testcontainers-nodejs/docs/reference/anvil-container | AnvilContainer reference} (docs)
+ * @see {@link https://hella-labs.github.io/foundryanvil-testcontainers-nodejs/docs/reference/anvil-container | AnvilContainer reference} (docs)
  */
 export class AnvilContainer<
   TAccount extends Account | undefined = undefined,
@@ -163,15 +163,6 @@ export class AnvilContainer<
   }
 
   /**
-   * Starts the prepared container. Override to run anvil elsewhere (e.g. a
-   * local binary): return a ready `StartedTestContainer` whose `getHost()` /
-   * `getMappedPort(port)` reach JSON-RPC; `this.prepare()` has the command.
-   */
-  protected startRuntime(): Promise<StartedTestContainer> {
-    return super.start();
-  }
-
-  /**
    * Starts anvil and sets up the test client once it serves JSON-RPC.
    * @throws AnvilConfigurationError for invalid options, before anything starts
    * @throws AnvilStartupError when anvil exits or never gets ready (with command and logs)
@@ -216,6 +207,15 @@ export class AnvilContainer<
         },
       );
     }
+  }
+
+  /**
+   * Starts the prepared container. Override to run anvil elsewhere (e.g. a
+   * local binary): return a ready `StartedTestContainer` whose `getHost()` /
+   * `getMappedPort(port)` reach JSON-RPC; `this.prepare()` has the command.
+   */
+  protected startRuntime(): Promise<StartedTestContainer> {
+    return super.start();
   }
 }
 

@@ -14,7 +14,7 @@ import "./state-options";
  * Every anvil flag, in groups mirroring `anvil --help`. Invalid values and
  * conflicts throw at once; dependencies are checked by `validate()` / `start()`.
  * @example new AnvilOptions().account.withAccounts(5).evm.withChainId(1337).mining.withBlockTime(1)
- * @see {@link https://hella-web3.github.io/foundryanvil-testcontainers-nodejs/docs/reference/anvil-options | Every flag, by group} (docs)
+ * @see {@link https://hella-labs.github.io/foundryanvil-testcontainers-nodejs/docs/reference/anvil-options | Every flag, by group} (docs)
  */
 export class AnvilOptions extends OptionsView {
   /** Creates an empty configuration (anvil defaults). `store` is internal. */

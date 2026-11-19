@@ -1,7 +1,7 @@
 # Documentation site
 
 The [Docusaurus](https://docusaurus.io) site published at
-<https://hella-web3.github.io/foundryanvil-testcontainers-nodejs/>.
+<https://hella-labs.github.io/foundryanvil-testcontainers-nodejs/>.
 
 A separate npm project (own `package.json`, lockfile, TypeScript, ESLint and
 tests), excluded from the library's builds, lint and tests.

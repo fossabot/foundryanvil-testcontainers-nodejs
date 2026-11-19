@@ -78,7 +78,7 @@ function resolveHooks(
  * (`NOT_STARTED` earlier).
  * @example
  * const anvil = useAnvil(new AnvilContainer().withTestClient((c) => c.withAccount(0)), { setup });
- * @see {@link https://hella-web3.github.io/foundryanvil-testcontainers-nodejs/docs/tasks/test-suites/share-a-node | Share one node per test file} (docs)
+ * @see {@link https://hella-labs.github.io/foundryanvil-testcontainers-nodejs/docs/tasks/test-suites/share-a-node | Share one node per test file} (docs)
  */
 export function useAnvil<TAccount extends Account | undefined = undefined>(
   container: AnvilStartable<TAccount>,

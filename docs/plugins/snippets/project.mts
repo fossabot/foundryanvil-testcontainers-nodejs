@@ -21,7 +21,7 @@ export const CONTENT_DIR = path.join(DOCS_ROOT, "content");
 
 /** GitHub repository of the library (source links, edit links). */
 export const REPOSITORY_URL =
-  "https://github.com/hella-web3/foundryanvil-testcontainers-nodejs";
+  "https://github.com/hella-labs/foundryanvil-testcontainers-nodejs";
 
 /** Branch the published docs link to. */
 export const DEFAULT_BRANCH = "main";

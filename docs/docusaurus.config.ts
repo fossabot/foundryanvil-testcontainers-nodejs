@@ -13,8 +13,8 @@ import remarkSnippets, {
 const PACKAGE = "@hellaweb3/foundryanvil-testcontainers-nodejs";
 
 // GitHub Pages: the deploy workflow passes the Pages URL (empty = unset);
-// the defaults match https://hella-web3.github.io/foundryanvil-testcontainers-nodejs/.
-const url = process.env.DOCS_URL || "https://hella-web3.github.io";
+// the defaults match https://hella-labs.github.io/foundryanvil-testcontainers-nodejs/.
+const url = process.env.DOCS_URL || "https://hella-labs.github.io";
 const baseUrl =
   process.env.DOCS_BASE_URL || "/foundryanvil-testcontainers-nodejs/";
 
@@ -33,7 +33,7 @@ const config: Config = {
   favicon: "img/favicon.svg",
   url,
   baseUrl: baseUrl.endsWith("/") ? baseUrl : `${baseUrl}/`,
-  organizationName: "hella-web3",
+  organizationName: "hella-labs",
   projectName: "foundryanvil-testcontainers-nodejs",
   trailingSlash: false,
 
