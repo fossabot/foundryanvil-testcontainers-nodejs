@@ -21,7 +21,7 @@ export class MiningOptions extends OptionsGroup {
     super(store);
   }
 
-  /** Interval mining: a block every `seconds` (fractions allowed) (`--block-time`). Conflicts with `withNoMining`. */
+  /** A block every `seconds`, fractions allowed (`--block-time`). */
   public withBlockTime(seconds: Integerish): this {
     return this.setValue(
       "--block-time",

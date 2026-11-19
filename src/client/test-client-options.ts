@@ -16,7 +16,7 @@ import { deriveAccountKeys } from "./keys";
 export type TestClientTransport = "http" | "webSocket";
 
 /** Polling interval of the test client by default (ms). */
-export const DEFAULT_POLLING_INTERVAL_MS = 100;
+export const DEFAULT_POLLING_INTERVAL_MS = 25;
 /** Request timeout of the test client by default (ms, viem's default). */
 export const DEFAULT_REQUEST_TIMEOUT_MS = 10_000;
 /** Retries of failed requests by default (viem's default). */
@@ -139,18 +139,11 @@ function isLocalAccount(value: unknown): value is LocalAccount {
 }
 
 /**
- * Fluent, validated configuration of the viem test client that
- * {@link StartedAnvilContainer.testClient} exposes. Setters validate
- * immediately; {@link AnvilContainer.prepare} additionally checks the
- * settings against the anvil flags before anything starts.
- *
- * The type parameter tracks whether a default account is configured, so
- * `testClient.sendTransaction({ to, value })` only compiles without an
- * explicit `account` when there is one.
- *
+ * Validated settings of {@link StartedAnvilContainer.testClient}; checked
+ * against the anvil flags before start. `TAccount`: the default account's type.
  * @example
- * new AnvilContainer(options).withTestClient((client) =>
- *   client.withAccount(0).withTransport("webSocket").withPollingInterval(50));
+ * new AnvilContainer(options).withTestClient((client) => client.withAccount(0).withTransport("webSocket"));
+ * @see {@link https://hella-web3.github.io/foundryanvil-testcontainers-nodejs/docs/tasks/configure/test-client | Configure the test client} (docs)
  */
 export class TestClientOptions<
   TAccount extends Account | undefined = undefined,
@@ -184,7 +177,7 @@ export class TestClientOptions<
     return this;
   }
 
-  /** Polling interval of watchers and receipt waits in ms (default 100). */
+  /** Polling interval of watchers and receipt waits in ms (default 25). */
   public withPollingInterval(ms: number): this {
     this.settings.pollingInterval = integer(
       "withPollingInterval",
@@ -195,10 +188,7 @@ export class TestClientOptions<
     return this;
   }
 
-  /**
-   * How long viem may reuse cached results such as the block number, in ms
-   * (default 0: a local node changes instantly).
-   */
+  /** How long viem may reuse cached results, e.g. the block number, in ms (default 0). */
   public withCacheTime(ms: number): this {
     this.settings.cacheTime = integer("withCacheTime", ms, "the cache time", 0);
     return this;
@@ -210,7 +200,7 @@ export class TestClientOptions<
     return this;
   }
 
-  /** Retries of failed requests and the base delay in ms (defaults 3 / 150; exponential backoff). */
+  /** Retries and their base delay in ms, backing off exponentially (defaults 3 / 150). */
   public withRetries(count: number, delayMs?: number): this {
     // Validate both before applying either: setters are all-or-nothing.
     const retryCount = integer("withRetries", count, "the retry count", 0);
@@ -247,12 +237,8 @@ export class TestClientOptions<
   }
 
   /**
-   * Default account signed **by anvil** (`eth_sendTransaction`), so actions
-   * need no `account` argument.
-   *
-   * - `number`: dev account index (checked against `--accounts`);
-   * - `Address`: any address; `{ impersonate: true }` unlocks it at startup
-   *   (not needed for dev accounts or with `account.autoImpersonate()`).
+   * Default account, signed **by anvil**: a dev account index or any address
+   * (`{ impersonate: true }` unlocks a non-dev address at startup).
    */
   public withAccount(
     account: number | Address,
@@ -279,11 +265,7 @@ export class TestClientOptions<
     return this as unknown as TestClientOptions<Account>;
   }
 
-  /**
-   * Default account that **signs locally** (`eth_sendRawTransaction`), like
-   * a real wallet: a dev account index (key derived from the mnemonic or read
-   * from anvil's banner), a 32-byte private key or a viem `LocalAccount`.
-   */
+  /** Default account that **signs locally**: a dev account index, a private key or a `LocalAccount`. */
   public withLocalAccount(
     account: number | Hex | LocalAccount,
   ): TestClientOptions<Account> {
@@ -321,11 +303,7 @@ export class TestClientOptions<
     return this as unknown as TestClientOptions<undefined>;
   }
 
-  /**
-   * Chain metadata (merged with earlier calls): name, native currency,
-   * contracts, block explorers. The chain id and RPC URLs always come from
-   * the running node.
-   */
+  /** Chain metadata, merged with earlier calls; id and RPC URLs come from the node. */
   public withChain(overrides: TestClientChainOverrides): this {
     if (typeof overrides !== "object" || overrides === null) {
       throw new AnvilTestClientConfigurationError(
@@ -364,11 +342,7 @@ export class TestClientOptions<
     return this;
   }
 
-  /**
-   * Registers Multicall3 for `client.multicall()` (default: the canonical
-   * address, present on forks of most networks; on a fresh node deploy it or
-   * `setCode` it first).
-   */
+  /** Registers Multicall3 for `multicall()` (default: the canonical address, e.g. on forks). */
   public withMulticall3(
     address: Address = MULTICALL3_ADDRESS,
     blockCreated?: number,
@@ -409,9 +383,7 @@ export class TestClientOptions<
   }
 
   /**
-   * Validates and freezes the settings. With the anvil `configuration`, it
-   * also checks them against the flags (called by `AnvilContainer.prepare()`
-   * before the container starts).
+   * Validated, frozen settings; also checked against `configuration`'s flags when given.
    * @throws AnvilTestClientConfigurationError
    */
   public build(configuration?: AnvilConfiguration): TestClientConfiguration {

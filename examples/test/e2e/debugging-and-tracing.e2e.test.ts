@@ -3,6 +3,7 @@
  * anvil's own trace logs, and RPC methods beyond viem's actions.
  */
 import {
+  AnvilContainer,
   AnvilOptions,
   AnvilTransactionRevertedError,
   Color,
@@ -24,7 +25,6 @@ import {
   mint,
   timeLockVault,
 } from "../../src";
-import { anvilContainer } from "../support/runtime";
 
 /** A frame of geth's `callTracer` output. */
 interface CallFrame {
@@ -42,7 +42,7 @@ let vault: Address;
 
 // #region tracing-node
 const anvil = useAnvil(
-  anvilContainer(
+  new AnvilContainer(
     new AnvilOptions().evm
       .withPrintTraces() // call traces in anvil's log output
       .withStepsTracing() // opcode-level debug_traceTransaction

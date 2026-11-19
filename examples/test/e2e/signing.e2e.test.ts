@@ -3,6 +3,7 @@
  * EIP-712 signatures, offline-signed transactions and fresh throwaway users.
  */
 import {
+  AnvilContainer,
   AnvilOptions,
   DEFAULT_MNEMONIC,
   useAnvil,
@@ -23,14 +24,13 @@ import {
   privateKeyToAccount,
 } from "viem/accounts";
 import { deployFixedPriceOracle, fixedPriceOracle } from "../../src";
-import { anvilContainer } from "../support/runtime";
 
 let delegate: Address;
 
 // #region local-account
 // Dev account 1 signs locally (its key is derived from anvil's mnemonic).
 const anvil = useAnvil(
-  anvilContainer().withTestClient((client) => client.withLocalAccount(1)),
+  new AnvilContainer().withTestClient((client) => client.withLocalAccount(1)),
   {
     // A contract to delegate EOAs to (EIP-7702), deployed once.
     setup: async (node) =>
@@ -210,7 +210,7 @@ describe("custom key material", () => {
     "legal winner thank year wave sausage worth useful legal winner thank yellow";
   // Dev accounts from a second BIP-44 account branch: m/44'/60'/1'/0/i
   const derived = useAnvil(
-    anvilContainer(
+    new AnvilContainer(
       new AnvilOptions().account
         .withMnemonic(MNEMONIC)
         .withDerivationPath("m/44'/60'/1'/0/")
@@ -219,17 +219,17 @@ describe("custom key material", () => {
   );
   // A fresh random mnemonic per run; keys are read from anvil's startup banner.
   const random = useAnvil(
-    anvilContainer(
+    new AnvilContainer(
       new AnvilOptions().account.withRandomMnemonic(),
     ).withTestClient((client) => client.withLocalAccount(0)),
   );
 
   // Reproducible "random" accounts: the same seed gives the same mnemonic.
   const seeded = useAnvil(
-    anvilContainer(new AnvilOptions().account.withMnemonicSeedUnsafe(42)),
+    new AnvilContainer(new AnvilOptions().account.withMnemonicSeedUnsafe(42)),
   );
   const seededAgain = useAnvil(
-    anvilContainer(new AnvilOptions().account.withMnemonicSeedUnsafe(42)),
+    new AnvilContainer(new AnvilOptions().account.withMnemonicSeedUnsafe(42)),
   );
 
   it("derives accounts along the configured path", async () => {

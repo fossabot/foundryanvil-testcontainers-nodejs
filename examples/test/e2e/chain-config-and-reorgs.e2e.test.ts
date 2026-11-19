@@ -4,17 +4,17 @@
  * caching and chain reorganisations.
  */
 import {
+  AnvilContainer,
   AnvilOptions,
   Hardfork,
   useAnvil,
 } from "@hellaweb3/foundryanvil-testcontainers-nodejs";
-import { hexToNumber, parseEther, parseGwei } from "viem";
+import { parseEther, parseGwei } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
-import { anvilContainer } from "../support/runtime";
 
 // #region chain-config
 const anvil = useAnvil(
-  anvilContainer(
+  new AnvilContainer(
     new AnvilOptions().evm
       .withChainId(8453)
       .withHardfork(Hardfork.Cancun)
@@ -50,7 +50,7 @@ describe("chain configuration and reorgs", () => {
     // #region node-info
     const info = await anvil.testClient.getNodeInfo();
     expect(info.hardFork.toLowerCase()).toBe("cancun");
-    expect(hexToNumber(info.environment.chainId)).toBe(8453);
+    expect(info.environment.chainId).toBe(8453);
     expect(BigInt(info.environment.gasLimit)).toBe(60_000_000n);
 
     const metadata = await anvil.testClient.getMetadata();
@@ -104,10 +104,17 @@ describe("chain configuration and reorgs", () => {
   });
 
   it("rolls back the tip of the chain", async () => {
+    // #region rollback
     const height = await anvil.testClient.getBlockNumber();
     await anvil.mine(5);
-    await anvil.cheats.rollback(5);
+
+    await anvil.cheats.rollback(5); // remove the last 5 blocks (default 1)
     expect(await anvil.testClient.getBlockNumber()).toBe(height);
+
+    await anvil.mine();
+    await anvil.testClient.rollback(); // the same as a test client action
+    expect(await anvil.testClient.getBlockNumber()).toBe(height);
+    // #endregion rollback
   });
 
   it("changes the chain id at runtime", async () => {

@@ -15,7 +15,7 @@ export const MNEMONIC_WORD_COUNTS: readonly number[] = Object.freeze([
   12, 15, 18, 21, 24,
 ]);
 
-/** Throws an error prefixed with the fluent method(s) and flag, e.g. `account.withAccounts() (--accounts): …`. */
+/** Throws, prefixed with the method(s) and flag: `account.withAccounts() (--accounts): …`. */
 export function fail(flag: AnvilFlag, reason: string): never {
   const methods = getFlagSpec(flag).methods.join(" / ");
   throw new AnvilConfigurationError(`${methods} (${flag}): ${reason}`, {

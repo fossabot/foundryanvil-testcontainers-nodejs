@@ -1,0 +1,60 @@
+/**
+ * Site theme. Infima variables: https://infima.dev
+ */
+:root {
+  --ifm-color-primary: #c2410c;
+  --ifm-color-primary-dark: #af3a0b;
+  --ifm-color-primary-darker: #a5370a;
+  --ifm-color-primary-darkest: #882d09;
+  --ifm-color-primary-light: #d5480d;
+  --ifm-color-primary-lighter: #df4b0e;
+  --ifm-color-primary-lightest: #f15e22;
+  --ifm-code-font-size: 92%;
+  --docusaurus-highlighted-code-line-bg: rgba(0, 0, 0, 0.1);
+}
+
+[data-theme="dark"] {
+  --ifm-color-primary: #fb923c;
+  --ifm-color-primary-dark: #fa7d1b;
+  --ifm-color-primary-darker: #fa720b;
+  --ifm-color-primary-darkest: #d15c04;
+  --ifm-color-primary-light: #fca75d;
+  --ifm-color-primary-lighter: #fcb16d;
+  --ifm-color-primary-lightest: #fdd0a5;
+  --docusaurus-highlighted-code-line-bg: rgba(0, 0, 0, 0.3);
+}
+
+/* "Tested in <file>:<line>" under every synced code sample. */
+.snippet-source {
+  margin-top: calc(-1 * var(--ifm-leading) - 0.25rem);
+  margin-bottom: var(--ifm-leading);
+  text-align: right;
+  font-size: 0.8rem;
+  color: var(--ifm-color-emphasis-700);
+}
+
+.snippet-source::before {
+  content: "✓ ";
+  color: var(--ifm-color-success);
+}
+
+.snippet-source code {
+  font-size: 0.75rem;
+  border: none;
+  background: none;
+  padding: 0;
+}
+
+/* Deep-dive links at the bottom of task pages. */
+.markdown h2#deep-dive,
+.markdown h2#deep-dives {
+  margin-top: 3rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--ifm-color-emphasis-300);
+  font-size: 1.2rem;
+}
+
+/* Reference tables: keep flags and method names on one line. */
+.markdown table code {
+  white-space: nowrap;
+}

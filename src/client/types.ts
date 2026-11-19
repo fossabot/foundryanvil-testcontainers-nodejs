@@ -9,14 +9,16 @@ export interface AnvilNodeInfo {
   transactionOrder: string;
   environment: {
     baseFee: Hex;
-    chainId: Hex;
+    /** A JSON number, unlike the hex-encoded fields around it. */
+    chainId: number;
     gasLimit: Hex;
     gasPrice: Hex;
   };
+  /** `null` fields when the node is not forking. */
   forkConfig: {
-    forkUrl?: string;
-    forkBlockNumber?: number;
-    forkRetryBackoff?: number;
+    forkUrl?: string | null;
+    forkBlockNumber?: number | null;
+    forkRetryBackoff?: number | null;
   };
   [key: string]: unknown;
 }
@@ -37,11 +39,7 @@ export interface AnvilMetadata {
   [key: string]: unknown;
 }
 
-/**
- * A transaction replayed by `anvil_reorg`: a signed raw transaction or a
- * request (sent from an unlocked / impersonated account), placed in the
- * `block`-th of the new blocks (0 = the first re-mined block).
- */
+/** A transaction for `anvil_reorg` (raw or a request from an unlocked account), in new block `block` (0-based). */
 export interface ReorgTransaction {
   readonly transaction: Hex | TransactionRequest;
   readonly block: number;

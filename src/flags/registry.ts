@@ -1,8 +1,6 @@
 /**
- * Registry of every anvil CLI flag: value kind, aliases, conflicts and
- * requirements. Single source of truth for the fluent API, the renderer, the
- * validator and the tests (which verify it against the real anvil parser).
- *
+ * Every anvil CLI flag with its kind, aliases, conflicts and requirements;
+ * verified against the real anvil parser by the tests.
  * @packageDocumentation
  */
 

@@ -10,7 +10,11 @@ import {
 import { SETTABLE_FLAGS } from "../../helpers/setters";
 
 const HELP_FILE = path.resolve(__dirname, "../../fixtures/anvil-help.txt");
-const README_FILE = path.resolve(__dirname, "../../../README.md");
+/** The options reference of the docs site (tables generated from this registry). */
+const REFERENCE_FILE = path.resolve(
+  __dirname,
+  "../../../docs/content/reference/anvil-options.md",
+);
 
 /** Flags printed by `anvil --help` that are not node configuration. */
 const NON_CONFIG_FLAGS = new Set(["--help", "-h", "--version", "-V"]);
@@ -182,15 +186,18 @@ describe("anvil flag registry", () => {
     expect([...SETTABLE_FLAGS].sort()).toEqual([...configurable].sort());
   });
 
-  it("is fully documented in the README", () => {
-    const readme = fs.readFileSync(README_FILE, "utf8");
+  it("is fully documented in the docs reference (`pnpm docs:sync` regenerates it)", () => {
+    const reference = fs.readFileSync(REFERENCE_FILE, "utf8");
     const undocumentedFlags = ANVIL_FLAG_LIST.filter(
-      (spec) => !readme.includes(`\`${spec.flag}\``),
+      (spec) => !reference.includes(`\`${spec.flag}\``),
     ).map((spec) => spec.flag);
     expect(undocumentedFlags).toEqual([]);
 
+    // Tables are per group, so methods appear without the group prefix.
     const undocumentedMethods = ANVIL_FLAG_LIST.flatMap((spec) =>
-      spec.methods.filter((method) => !readme.includes(method)),
+      spec.methods.filter(
+        (method) => !reference.includes(`\`${method.replace(/^\w+\./, "")}\``),
+      ),
     );
     expect(undocumentedMethods).toEqual([]);
   });

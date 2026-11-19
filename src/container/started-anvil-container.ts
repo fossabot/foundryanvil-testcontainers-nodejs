@@ -14,6 +14,8 @@ import {
   type Chain,
   getAddress,
   type Hash,
+  type Hex,
+  hexToNumber,
   parseEther,
   toHex,
   TransactionReceipt,
@@ -52,15 +54,16 @@ import { Address, AnvilAccount, HexString } from "../types";
 import { loadContractAbi, loadContractBytecode } from "./artifacts";
 import { readStartedContainerLogSnapshot } from "./container-logs";
 import { extractSingleFile } from "./tar";
+import { probeJsonRpc } from "./wait-strategy";
 
 export type { AnvilTestClient } from "../client/test-client";
 export type { AnvilMetadata, AnvilNodeInfo } from "../client/types";
 export { deriveAccountKeys, parsePrivateKeysFromBanner };
 
-/** `docker stop` timeout used when a state dump must be written on exit. */
+/** Graceful stop timeout when a state dump must be written (ms). */
 export const DEFAULT_GRACEFUL_STOP_TIMEOUT_MS = 30_000;
 
-/** Polling interval of the test client by default (alias of `DEFAULT_POLLING_INTERVAL_MS`). */
+/** Alias of `DEFAULT_POLLING_INTERVAL_MS`. */
 export const ANVIL_POLLING_INTERVAL_MS = DEFAULT_POLLING_INTERVAL_MS;
 
 /** @internal */
@@ -73,7 +76,7 @@ export interface StartedAnvilContainerDetails {
   readonly testClient?: TestClientConfiguration;
 }
 
-/** A snapshot that can be restored any number of times (see {@link StartedAnvilContainer.checkpoint}). */
+/** A snapshot that can be restored any number of times. */
 export interface AnvilCheckpoint {
   /** Id of the current underlying `evm_snapshot`. */
   readonly id: HexString;
@@ -85,16 +88,10 @@ export interface AnvilCheckpoint {
 export type TestClientAccountInput = Address | Account | { address: Address };
 
 /**
- * A running anvil node with a pre-configured viem test client:
- *
- * - {@link testClient}: every viem test, public and wallet action plus
- *   anvil extras, bound to the node's chain (see `TestClientOptions`);
- * - {@link cheats}: fluent, awaitable chains of state manipulations;
- * - helpers for accounts, transactions, mining, time, fees, snapshots,
- *   state files and diagnostics.
- *
- * `TAccount` is the type of the configured default account (`undefined`
- * when none), which decides whether actions require an `account` argument.
+ * A running anvil node: a pre-configured viem {@link testClient}, fluent
+ * {@link cheats}, and helpers for accounts, transactions, time, snapshots,
+ * state files and diagnostics. `TAccount`: the default account's type.
+ * @see {@link https://hella-web3.github.io/foundryanvil-testcontainers-nodejs/docs/reference/started-anvil-container | StartedAnvilContainer reference} (docs)
  */
 export class StartedAnvilContainer<
   TAccount extends Account | undefined = undefined,
@@ -134,10 +131,7 @@ export class StartedAnvilContainer<
     });
   }
 
-  /**
-   * @internal Finishes startup: copies `--config-out`, impersonates and
-   * resolves the configured default account. Called by `AnvilContainer.start()`.
-   */
+  /** @internal Finishes `AnvilContainer.start()`: `--config-out`, default account. */
   public async initialize(): Promise<this> {
     await this.exportFiles("start");
     const spec = this.clientConfiguration.account;
@@ -167,7 +161,7 @@ export class StartedAnvilContainer<
     return this._chain.id;
   }
 
-  /** viem `Chain` for this node, for building your own clients. */
+  /** viem `Chain` of this node, for your own clients. */
   public get chain(): Chain {
     return this._chain;
   }
@@ -177,28 +171,26 @@ export class StartedAnvilContainer<
     return this.details.configuration;
   }
 
-  /** Test client settings in effect (see `AnvilContainer.withTestClient`). */
+  /** Test client settings in effect. */
   public get testClientConfiguration(): TestClientConfiguration {
     return this.clientConfiguration;
   }
 
   /**
-   * The pre-configured viem test client: all test actions (`mode: "anvil"`),
-   * public and wallet actions, and {@link AnvilActions}.
+   * viem test client (`mode: "anvil"`) with public, wallet and {@link AnvilActions}.
    * @example await anvil.testClient.setCode({ address, bytecode })
    */
   public get testClient(): AnvilTestClient<TAccount> {
     return this._testClient;
   }
 
-  /** Same as {@link testClient} (kept for compatibility). */
+  /** Alias of {@link testClient}. */
   public get client(): AnvilTestClient<TAccount> {
     return this._testClient;
   }
 
   /**
-   * A new fluent, awaitable chain of state manipulations on {@link testClient}.
-   * Each access starts a new chain; nothing runs until it is awaited.
+   * A new cheats chain; runs when awaited.
    * @example await anvil.cheats.setBalanceEther(alice, 100).increaseTime({ days: 1 }).mine()
    */
   public get cheats(): AnvilCheats<TAccount> {
@@ -206,8 +198,7 @@ export class StartedAnvilContainer<
   }
 
   /**
-   * A test client (same settings) acting as `account`: an address anvil
-   * signs for (dev account or impersonated) or a viem `LocalAccount`.
+   * A client with the same settings acting as `account`: an address anvil signs for, or a `LocalAccount`.
    * @example await anvil.testClientFor(bob).writeContract({ address, abi, functionName: "approve", args })
    */
   public testClientFor(
@@ -223,8 +214,7 @@ export class StartedAnvilContainer<
   }
 
   /**
-   * A new test client with its own settings, e.g. a WebSocket client next to
-   * the default HTTP one. Validated against the node's configuration.
+   * A client with its own settings, validated against the node.
    * @throws AnvilTestClientConfigurationError
    */
   public async createTestClient<A extends Account | undefined = undefined>(
@@ -247,8 +237,8 @@ export class StartedAnvilContainer<
   }
 
   /**
-   * Raw JSON-RPC request, e.g. for methods viem doesn't wrap.
-   * @example await anvil.rpc("anvil_setChainId", [1])
+   * Raw JSON-RPC request.
+   * @example await anvil.rpc("debug_traceTransaction", [hash, { tracer: "callTracer" }])
    */
   public rpc<T = unknown>(
     method: string,
@@ -259,19 +249,13 @@ export class StartedAnvilContainer<
 
   // -------------------------------------------------------------- accounts
 
-  /**
-   * Dev account addresses (`eth_accounts`), checksummed. Always asks the
-   * node (viem's `getAddresses()` returns only the local default account).
-   */
+  /** Dev account addresses (`eth_accounts`), checksummed. */
   public async addresses(): Promise<Address[]> {
     const addresses = await this.rpc<Address[]>("eth_accounts");
     return addresses.map((address) => getAddress(address));
   }
 
-  /**
-   * Dev accounts with private keys: derived when the mnemonic is known,
-   * otherwise parsed from anvil's startup banner (needs logs enabled).
-   */
+  /** Dev accounts with private keys (from the mnemonic, or anvil's banner unless `--quiet`). */
   public async accounts(): Promise<AnvilAccount[]> {
     if (this.cachedAccounts) return this.cachedAccounts;
     const addresses = await this.addresses();
@@ -302,7 +286,7 @@ export class StartedAnvilContainer<
     return this.setBalance(address, parseEther(String(ether)));
   }
 
-  /** Send transactions from `address` without its key (`anvil_impersonateAccount`). */
+  /** Sends as `address` without its key (`anvil_impersonateAccount`). */
   public impersonate(address: Address): Promise<void> {
     return this._testClient.impersonateAccount({ address });
   }
@@ -313,8 +297,7 @@ export class StartedAnvilContainer<
   }
 
   /**
-   * Runs `fn` while `address` is impersonated, with a client acting as it;
-   * always stops impersonating.
+   * Runs `fn` while `address` is impersonated; always stops afterwards.
    * @example await anvil.withImpersonation(whale, (c) => c.sendTransaction({ account: whale, to, value }))
    */
   public async withImpersonation<T>(
@@ -336,7 +319,7 @@ export class StartedAnvilContainer<
 
   // ---------------------------------------------------------- transactions
 
-  /** Sends Ether (decimal string) and waits for the receipt; mines if automine is off. */
+  /** Sends Ether (decimal string) and returns the receipt. */
   public async sendEthTransaction(
     from: Address,
     to: Address,
@@ -350,7 +333,7 @@ export class StartedAnvilContainer<
     return this.confirm(hash, { throwOnRevert: false });
   }
 
-  /** Deploys a contract and waits for the receipt (`contractAddress`); mines if automine is off. */
+  /** Deploys a contract and returns the receipt (`contractAddress`). */
   public async deployContract(
     abi: Abi | readonly unknown[],
     bytecode: HexString,
@@ -367,9 +350,8 @@ export class StartedAnvilContainer<
   }
 
   /**
-   * Waits for a transaction's receipt, mining a block first when automine is
-   * off; throws {@link AnvilTransactionRevertedError} (with the revert reason
-   * when recoverable) unless `throwOnRevert: false`.
+   * Receipt of a transaction; mines a block when automine is off.
+   * @throws AnvilTransactionRevertedError when it reverted (unless `throwOnRevert: false`)
    * @example const receipt = await anvil.confirm(anvil.testClient.writeContract({ … }))
    */
   public async confirm(
@@ -412,10 +394,7 @@ export class StartedAnvilContainer<
     });
   }
 
-  /**
-   * Advances time for the next block (`evm_increaseTime`): seconds or
-   * `{ days: 7 }`. Resolves to the total time offset in seconds.
-   */
+  /** Advances time for the next block (`evm_increaseTime`); resolves to the total offset in seconds. */
   public async increaseTime(duration: Duration): Promise<number> {
     const offset = await this._testClient.increaseTime({
       seconds: Number(durationToSeconds(duration, "increaseTime")),
@@ -435,7 +414,7 @@ export class StartedAnvilContainer<
     return (await this._testClient.getBlock()).timestamp;
   }
 
-  /** Gas price the node suggests (`eth_gasPrice`) in wei (`anvil_setMinGasPrice`; pre-London hardforks only). */
+  /** Suggested gas price in wei (`anvil_setMinGasPrice`; pre-London only). */
   public setMinGasPrice(wei: bigint): Promise<void> {
     return this._testClient.setMinGasPrice({ gasPrice: wei });
   }
@@ -458,18 +437,14 @@ export class StartedAnvilContainer<
   }
 
   /**
-   * `evm_revert`; a snapshot can be reverted to once. Throws
-   * {@link AnvilTestClientError} `SNAPSHOT_NOT_FOUND` for unknown or used ids
-   * (anvil only answers `false`).
+   * `evm_revert`; each snapshot can be reverted to once.
+   * @throws AnvilTestClientError `SNAPSHOT_NOT_FOUND` for unknown or used ids
    */
   public revert(id: HexString): Promise<void> {
     return this._testClient.revert({ id });
   }
 
-  /**
-   * Runs `fn` on a snapshot and always reverts — isolates tests sharing a
-   * node. When `fn` throws, its error wins over a failing revert.
-   */
+  /** Runs `fn`, then reverts its changes (also when it throws). */
   public async withSnapshot<T>(
     fn: (client: AnvilTestClient<TAccount>) => Promise<T>,
   ): Promise<T> {
@@ -486,9 +461,7 @@ export class StartedAnvilContainer<
   }
 
   /**
-   * Reusable snapshot for cheap per-test isolation on one shared node:
-   * `restore()` reverts and re-snapshots (a snapshot is consumed on revert).
-   * Milliseconds per test instead of a container per test.
+   * A snapshot that can be restored any number of times.
    * @example const base = await anvil.checkpoint(); afterEach(() => base.restore());
    */
   public async checkpoint(): Promise<AnvilCheckpoint> {
@@ -505,10 +478,8 @@ export class StartedAnvilContainer<
   }
 
   /**
-   * `anvil_reset`: without options a non-forked node returns to genesis and
-   * a forked node re-forks at its current fork block, discarding local
-   * changes; `{ blockNumber }` re-forks at another block, `{ jsonRpcUrl }`
-   * (re-)forks from a URL. Discards all snapshots and checkpoints.
+   * Back to genesis, or to the fork block on a fork; `{ blockNumber }` /
+   * `{ jsonRpcUrl }` re-fork. Discards all snapshots (`anvil_reset`).
    */
   public reset(options?: AnvilResetParameters): Promise<void> {
     return this._testClient.reset(options);
@@ -519,7 +490,7 @@ export class StartedAnvilContainer<
     return this._testClient.dumpState();
   }
 
-  /** Writes the state as JSON (the `--load-state` format); creates parent directories. */
+  /** Writes the state as `--load-state` JSON. */
   public async dumpStateToFile(hostPath: string): Promise<void> {
     const target = path.resolve(hostPath);
     fs.mkdirSync(path.dirname(target), { recursive: true });
@@ -531,7 +502,7 @@ export class StartedAnvilContainer<
     await this._testClient.loadState({ state });
   }
 
-  /** Loads a JSON state file (`--dump-state`, {@link dumpStateToFile}) or raw dump hex. */
+  /** Loads a state file (JSON or dump hex). */
   public loadStateFromFile(hostPath: string): Promise<void> {
     const content = fs.readFileSync(path.resolve(hostPath));
     const text = content.toString("utf8").trim();
@@ -562,7 +533,7 @@ export class StartedAnvilContainer<
     return readStartedContainerLogSnapshot(this.startedTestContainer, tail);
   }
 
-  /** ABI from the artifacts dir (see `AnvilContainer.withArtifactsDir`). */
+  /** ABI from the artifacts dir (`AnvilContainer.withArtifactsDir`). */
   public contractAbi(location: string): Abi {
     return loadContractAbi(location, this.details.artifactsDir);
   }
@@ -574,16 +545,15 @@ export class StartedAnvilContainer<
 
   // -------------------------------------------------------------- lifecycle
 
-  /** `true` once {@link stop} was called; the test clients then reject every request. */
+  /** `true` once {@link stop} was called. */
   public get isStopped(): boolean {
     return this.stopped;
   }
 
   /**
-   * Stops the container. With a host-path state dump configured, anvil gets
-   * `SIGTERM` and up to `timeout` (default {@link DEFAULT_GRACEFUL_STOP_TIMEOUT_MS})
-   * to write it; the file is copied to the host before removal. Test clients
-   * are closed and reject later requests with `CONTAINER_STOPPED`.
+   * Stops the node; clients then reject with `CONTAINER_STOPPED`. With a state
+   * dump configured, stops gracefully ({@link DEFAULT_GRACEFUL_STOP_TIMEOUT_MS})
+   * and copies the dump to the host.
    */
   public override async stop(
     options: Partial<StopOptions> = {},
@@ -634,7 +604,7 @@ export class StartedAnvilContainer<
     }
   }
 
-  /** Removes a container stopped with `remove: false`; overridable for non-Docker runtimes. */
+  /** Removes a container stopped with `remove: false`; override for non-Docker runtimes. */
   protected async removeStoppedContainer(
     stopped: StoppedTestContainer,
     removeVolumes: boolean,
@@ -709,8 +679,16 @@ export class StartedAnvilContainer<
     chain.id = chainId;
   }
 
+  /** Re-reads the chain id from the node (the clients answer it locally). */
   private async syncChainId(): Promise<void> {
-    this.updateChainId(await this._testClient.getChainId());
+    const { result, error } =
+      (await probeJsonRpc(this.details.rpcUrl, "eth_chainId", 10_000)) ?? {};
+    if (typeof result !== "string") {
+      throw new Error(
+        `Could not read the chain id of ${this.details.rpcUrl} after anvil_reset: ${JSON.stringify(error ?? "no answer")}`,
+      );
+    }
+    this.updateChainId(hexToNumber(result as Hex));
   }
 
   private deriveKeys(count: number): HexString[] | undefined {

@@ -43,11 +43,54 @@ test lifecycle hooks.
   anvil extra and `cheats` step, plus forking, tracing, simulation, EIP-7702
   and node configuration) running on contract artifacts (ABI `.json` +
   bytecode `.bin`);
-  part of the quality gate (`pnpm examples:test`,
+  part of the quality gate (`pnpm examples:unit [--coverage]`,
   `pnpm examples:e2e [--no-docker]`, `pnpm gate`).
+- Documentation site (`docs/`, Docusaurus, published to GitHub Pages by
+  `.github/workflows/docs.yml`): task-based guides, a complete API reference
+  and deep dives. Every code sample is synced from a tested `#region` of
+  `examples/` and reference tables are generated from the library; drift,
+  unlinked code, unshown example regions and undocumented API fail
+  `pnpm docs:unit` and the site build. New root scripts: `pnpm docs:start`,
+  `docs:sync`, `docs:unit [--coverage]`, `docs:e2e [--no-docker]`,
+  `docs:build`, `docs:serve`.
+- More tested examples: quick start, lifecycle control, cheats plans and
+  errors, every remaining anvil option (fork points and provider options,
+  request size, code size, pool balance checks, gas price, priority fee,
+  finality, transaction keeper, state files, network modes, log formats,
+  server paths, composition and inspection).
+
+### Performance
+
+Measured with the new `pnpm bench` (local anvil, alternating runs against
+the previous build; ranges over two sessions with different machine load):
+
+- `confirm()` / `confirmTransaction()` (also behind `sendEthTransaction()`,
+  `deployContract()`): anvil returns an automined transaction's hash just
+  before the block is committed; the receipt is now re-read immediately
+  (together with the automine check) and then with a 1 ms backoff instead of
+  viem's block watcher — 1.3–2× faster, and no more tails of a whole
+  polling interval.
+- The container's clients answer `eth_chainId` from the chain id they track
+  (following `setChainId()` / `reset()`, also as raw `rpc()` /
+  `request()` calls): one round trip less per node-signed transaction,
+  1.7–1.8× faster sends.
+- `useAnvil()` empties the mempool while restoring the per-test snapshot:
+  one round trip less per test (1.05–1.5× faster isolation).
+- The default polling interval is 25 ms (was 100 ms): HTTP watchers observe
+  changes ~3.7× sooner.
+- The keys of anvil's default mnemonic are built in and other derivations
+  are memoized: 40–90 ms less for the first start with `withLocalAccount()`
+  or `accounts()` in every test file.
+- Readiness is probed every 10 ms (was 50 ms); the container state (a
+  Docker API call) is checked at most every 100 ms.
+- A typical test (three confirmed writes, reads, cheats, restore) runs
+  1.4–1.85× faster.
 
 ### Fixed
 
+- `AnvilNodeInfo` types: `environment.chainId` is a number (anvil returns a
+  JSON number; it was typed as hex) and `forkConfig` fields are `null` when
+  the node is not forking.
 - `reset()` without arguments failed on non-forked nodes (viem sends a fork
   config); it now resets to genesis.
 - `revert()` silently continued when anvil answered `false` (unknown or
@@ -64,6 +107,11 @@ test lifecycle hooks.
 
 ### Changed
 
+- viem and testcontainers are pinned to `2.57.1` / `12.2.0` (from
+  `^2.57.20` / `12.2.1`) so installs are identical in the sandbox mirror, in
+  CI and locally (TODO: bump again once the mirror serves them). pnpm is
+  pinned with `packageManager` (10.34.5); the lockfiles keep macOS and
+  Linux arm64 builds of native tools, checked by `pnpm lockfiles:check`.
 - `increaseTime()`, `mine()`, `setIntervalMining()` accept durations;
   `increaseTime()` resolves to the time offset in seconds (was `unknown`).
 - `addresses()` always asks the node (`eth_accounts`).
@@ -71,6 +119,15 @@ test lifecycle hooks.
   before consulting automine.
 - `AnvilNodeInfo` / `AnvilMetadata` moved to the test client types (still
   exported from the package root).
+- The README is now a concise entry point (quick start synced from a tested
+  example, links into the docs); its reference tables moved to the docs site,
+  where their completeness is tested. `package.json` `homepage` points to the
+  docs.
+- The examples create nodes with `new AnvilContainer(options)` (as users do);
+  `--no-docker` swaps the runtime in a Jest setup file instead of a wrapper.
+- `pnpm examples:*` run through `scripts/examples.mjs` again: `--coverage`
+  and `--no-docker` reach the examples' scripts, and linking no longer uses
+  the global npm prefix. Examples unit coverage is enforced on `src/`.
 
 ## 0.3.0
 

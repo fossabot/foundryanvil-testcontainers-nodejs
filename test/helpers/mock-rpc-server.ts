@@ -38,6 +38,11 @@ export class MockRpcServer {
   public receiptStatus: "0x0" | "0x1" = "0x1";
   /** Transactions sent while automine was off stay pending until a block is mined. */
   public pending = false;
+  /**
+   * Receipt reads answered with `null` before the receipt shows up: anvil
+   * returns an automined transaction's hash just before the block is committed.
+   */
+  public receiptDelayReads = 0;
   private server?: http.Server;
   private blockNumber = 0;
 
@@ -66,10 +71,14 @@ export class MockRpcServer {
         const requests: Array<typeof payload> = Array.isArray(payload)
           ? (payload as Array<typeof payload>)
           : [payload];
-        const responses = requests.map((request) => this.handle(request));
-        res.writeHead(200, { "content-type": "application/json" });
-        res.end(
-          JSON.stringify(Array.isArray(payload) ? responses : responses[0]),
+        // Overrides may be async (e.g. to hold a request until another arrives).
+        void Promise.all(requests.map((request) => this.handle(request))).then(
+          (responses) => {
+            res.writeHead(200, { "content-type": "application/json" });
+            res.end(
+              JSON.stringify(Array.isArray(payload) ? responses : responses[0]),
+            );
+          },
         );
       });
     });
@@ -93,7 +102,11 @@ export class MockRpcServer {
     return this.calls.filter((call) => call.method === method);
   }
 
-  private handle(request: { id?: number; method: string; params?: unknown[] }) {
+  private async handle(request: {
+    id?: number;
+    method: string;
+    params?: unknown[];
+  }) {
     const call: RpcCall = {
       method: request.method,
       params: request.params ?? [],
@@ -106,9 +119,9 @@ export class MockRpcServer {
     }
     const override = this.overrides.get(request.method);
     try {
-      const result = override
+      const result: unknown = await (override
         ? override(call.params, call)
-        : this.defaultHandler(request.method, call.params);
+        : this.defaultHandler(request.method, call.params));
       return { jsonrpc: "2.0", id: request.id, result };
     } catch (error) {
       return {
@@ -232,6 +245,10 @@ export class MockRpcServer {
         return HASH;
       case "eth_getTransactionReceipt":
         if (this.pending) return null;
+        if (this.receiptDelayReads > 0) {
+          this.receiptDelayReads -= 1;
+          return null;
+        }
         return {
           transactionHash: HASH,
           transactionIndex: "0x0",

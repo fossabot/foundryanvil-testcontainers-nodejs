@@ -21,6 +21,7 @@ export type SignerClient = AnvilTestClient<Account>;
 /** Any test client (reads need no account). */
 export type ReaderClient = AnvilTestClient<Account | undefined>;
 
+// #region deploy-helper
 /**
  * Deploys an artifact and returns the new contract's checksummed address
  * (receipts carry it lowercase; contract reads return checksummed addresses).
@@ -39,6 +40,7 @@ export async function deployContract(
   if (!contractAddress) throw new Error(`${hash} created no contract`);
   return getAddress(contractAddress);
 }
+// #endregion deploy-helper
 
 /** Deploys ExampleToken; the client's account is its owner. */
 export function deployToken(

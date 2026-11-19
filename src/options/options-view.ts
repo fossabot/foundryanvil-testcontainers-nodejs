@@ -32,7 +32,7 @@ export const DEFAULT_DERIVATION_PATH = "m/44'/60'/0'/0/";
 /** anvil's default chain id (when not forking). */
 export const DEFAULT_CHAIN_ID = 31337;
 
-/** Immutable, validated result of {@link OptionsView.build}, consumed by {@link AnvilContainer}. */
+/** Validated, immutable result of {@link OptionsView.build}. */
 export interface AnvilConfiguration {
   /** Arguments without the executable, e.g. `["--host", "0.0.0.0", "--accounts", "5"]`. */
   readonly args: readonly string[];
@@ -98,20 +98,9 @@ function createView<T extends OptionsView>(
 }
 
 /**
- * Base of {@link AnvilOptions} and every option group. All views share one
- * configuration: every group exposes every other group and is itself a full
- * `AnvilOptions`, so calls chain freely:
- *
- * ```ts
- * new AnvilOptions()
- *   .account.withAccounts(5).withBalance(1_000)
- *   .evm.withChainId(1337)
- *   .mining.withBlockTime(1);
- * ```
- *
- * Setters validate immediately and throw {@link AnvilConfigurationError} on
- * invalid values or conflicting flags. Boolean setters take
- * `enabled = true`; `false` removes the flag.
+ * Base of {@link AnvilOptions} and its groups, which share one configuration
+ * and chain freely. Setters validate at once ({@link AnvilConfigurationError});
+ * boolean setters take `enabled = true` (`false` removes the flag).
  */
 export abstract class OptionsView {
   readonly #store: FlagStore;
@@ -167,7 +156,7 @@ export abstract class OptionsView {
   }
 
   /**
-   * Applies configuration functions ("presets").
+   * Runs presets on this configuration.
    * @example new AnvilOptions().apply((o) => o.mining.withBlockTime(1), withRichAccounts)
    */
   public apply(
@@ -184,8 +173,7 @@ export abstract class OptionsView {
   }
 
   /**
-   * Removes flags (and attached file transfers); no-op when absent. Use it to
-   * replace a conflicting flag inherited from a base configuration.
+   * Removes flags (and their file transfers), e.g. to swap a conflicting one.
    * @example base.clone().unset("--mnemonic").account.withRandomMnemonic()
    */
   public unset(...flags: readonly AnvilFlag[]): this {
@@ -193,10 +181,7 @@ export abstract class OptionsView {
     return this;
   }
 
-  /**
-   * Appends raw arguments after the generated ones, for flags newer than this
-   * library. Known flags are rejected so validation cannot be bypassed.
-   */
+  /** Raw arguments for flags newer than the library; known flags are rejected. */
   public withExtraArgs(...args: readonly string[]): this {
     this.#store.addExtraArgs(args);
     return this;
@@ -219,7 +204,7 @@ export abstract class OptionsView {
     return this.#store.toObject();
   }
 
-  /** Rendered arguments (without `anvil`); dependencies are not validated — prefer {@link build}. */
+  /** Rendered arguments without `anvil` (unvalidated; see {@link build}). */
   public toArgs(): string[] {
     return this.#store.render();
   }
@@ -247,9 +232,8 @@ export abstract class OptionsView {
   }
 
   /**
-   * Throws one {@link AnvilConfigurationError} listing every problem.
-   * Conflicts are already rejected by the setters; this checks dependencies
-   * that need the whole configuration (e.g. fork options need a fork URL).
+   * Checks dependencies between flags (conflicts are rejected by the setters).
+   * @throws AnvilConfigurationError listing every problem
    */
   public validate(): this {
     const errors = this.problems();

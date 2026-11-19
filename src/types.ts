@@ -77,8 +77,7 @@ export interface ContainerPath {
 export type FilePath = string | ContainerPath;
 
 /**
- * Marks an absolute path as living inside the container (e.g. baked into a
- * custom image), so it is passed to anvil without copying.
+ * A path inside the container (e.g. in your image): passed through, not copied.
  * @example new AnvilOptions().state.withLoadState(containerPath("/data/state.json"))
  */
 export function containerPath(path: string): ContainerPath {
@@ -102,9 +101,6 @@ export function isContainerPath(value: unknown): value is ContainerPath {
 export interface AnvilAccount {
   readonly index: number;
   readonly address: Address;
-  /**
-   * Known when the mnemonic is known or could be parsed from anvil's banner;
-   * `undefined` for random/seeded mnemonics with `--quiet`.
-   */
+  /** `undefined` for random or seeded mnemonics with `--quiet`. */
   readonly privateKey?: HexString;
 }

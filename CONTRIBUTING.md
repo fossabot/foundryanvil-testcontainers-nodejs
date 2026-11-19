@@ -6,27 +6,71 @@
 |---------------------------------|------------------------------------------------------------------|
 | `pnpm build`                    | Build ESM + CJS + types into `dist/`                             |
 | `pnpm typecheck`                | `tsc --noEmit`                                                   |
-| `pnpm eslint`                   | Lint (and fix)                                                   |
+| `pnpm lint`                     | Lint (and fix)                                                   |
 | `pnpm test`                     | All tests (e2e tests run in Docker when available, otherwise skip) |
-| `pnpm test:unit`                | Unit tests only (no Docker or anvil needed)                      |
+| `pnpm test:unit [--coverage]`   | Unit tests only (no Docker or anvil needed); thresholds enforced with `--coverage` |
 | `pnpm test:e2e`                 | End-to-end tests against real anvil **in Docker** (default, CI/CD) |
 | `pnpm test:e2e --no-docker`     | End-to-end tests against a **local anvil binary** – bundled, no Docker or Foundry install needed (local testing only) |
-| `pnpm test:coverage`            | Unit tests with coverage (thresholds enforced)                   |
 | `pnpm examples:setup`           | Build the library if stale, install `examples/` (`npm ci`) and `npm link` the library |
-| `pnpm examples:test`            | Examples: setup + typecheck + lint + unit tests                  |
-| `pnpm examples:e2e`             | Examples: workflows against anvil in Docker (`--no-docker`: local binary) |
-| `pnpm check`                    | Build, typecheck, lint, all tests, examples' static checks and unit tests |
-| `pnpm gate`                     | The baseline quality gate (see below)                            |
+| `pnpm examples:unit [--coverage]` | Examples: setup + typecheck + lint + unit tests               |
+| `pnpm examples:e2e [--no-docker]` | Examples: setup + typecheck + lint + workflows against anvil (Docker, or a local binary) |
+| `pnpm docs:start`               | Docs site dev server (`docs/`)                                   |
+| `pnpm docs:sync`                | Sync the docs' code samples and generated reference tables      |
+| `pnpm docs:unit [--coverage]`   | Docs: sync check + typecheck + lint + unit tests (incl. API coverage) |
+| `pnpm docs:e2e [--no-docker]`   | Docs: the examples behind every sample, site build, built-page checks (`--skip-examples` skips the first) |
+| `pnpm docs:build` / `docs:serve` | Production build of the site / serve it                         |
+| `pnpm bench [--baseline <dist/index.cjs>] [--rounds n]` | Benchmark the hot paths users pay for (local anvil, no Docker); compare with another build |
+| `pnpm lockfiles:check`          | Lockfiles install native tools (anvil, swc, rollup…) on macOS and Linux |
+| `pnpm lockfiles:restore [--from <ref>]` | Put platform builds pruned by a re-resolve back from git |
+| `pnpm gate`                     | The full quality gate (see below); `check:local` is an alias    |
+| `pnpm check:docker`             | The gate with Docker for every e2e step (what CI runs)          |
 
 ### Baseline quality gate
 
 ```shell
-pnpm build && pnpm typecheck && pnpm eslint && pnpm test:unit && pnpm test:e2e --no-docker \
-  && pnpm examples:test && pnpm examples:e2e --no-docker
+pnpm build && pnpm lint && pnpm typecheck && pnpm test:unit --coverage && pnpm test:e2e --no-docker \
+  && pnpm examples:e2e --no-docker && pnpm examples:unit --coverage \
+  && pnpm docs:unit --coverage && pnpm docs:e2e --no-docker --skip-examples
 ```
 
-`pnpm gate` runs exactly this. CI should additionally run the Docker modes
-(`pnpm test:e2e`, `pnpm examples:e2e`).
+`pnpm gate` runs exactly this (the docs' e2e step skips the examples, which
+the gate has just run). CI runs the Docker modes (`pnpm test:e2e`,
+`pnpm examples:e2e`, and `pnpm docs:e2e` in the Pages workflow).
+
+### Dependencies and lockfiles
+
+The gate must run identically in the sandbox, in CI and on developer
+machines (Linux and macOS), from a fresh clone:
+
+```shell
+pnpm install        # or --frozen-lockfile / CI=true: the lockfile is used as is
+pnpm gate           # installs examples/ and docs/ with `npm ci`
+```
+
+- **pnpm is pinned** (`packageManager` in package.json); CI reads it from
+  there. Three lockfiles are committed: `pnpm-lock.yaml`,
+  `examples/package-lock.json`, `docs/package-lock.json`.
+- **viem and testcontainers are pinned** to `2.57.1` / `12.2.0`, the newest
+  patch releases the sandbox's registry mirror can install.
+  **TODO:** bump them to `^2.57.20` / `^12.2.1` once the mirror serves them
+  (tracked in `pnpm-workspace.yaml` and
+  `test/unit/helpers/dependency-pins.test.ts`, which keeps the library, the
+  examples and the lockfiles on the same versions).
+- **Platform builds.** anvil, swc, rollup and unrs-resolver ship one npm
+  package per platform. The mirror carries Linux x64 builds only, and pnpm /
+  npm silently drop optional packages they cannot resolve, so re-resolving a
+  lockfile there removes the macOS (and Linux arm64) builds. The lockfiles
+  keep them with their npmjs.org integrity, and `pnpm lockfiles:check` (part
+  of `pnpm test:unit`) fails when one is missing.
+- **Changing dependencies** (e.g. the TODO above): `pnpm add <pkg>@<version>`;
+  in `examples/` or `docs/` edit package.json and run `npm install` until
+  package-lock.json stops changing (npm can need a second pass); then
+  `pnpm lockfiles:restore` (builds of unchanged versions come back from
+  `HEAD`), `pnpm lockfiles:check` and `pnpm gate`. New versions of a native
+  package must be resolved once where all platforms are available (npmjs.org).
+- `pnpm install --force` installs the optional builds of *every* platform
+  and therefore needs npmjs.org; every other install mode installs the
+  current platform's builds only.
 
 ### End-to-end tests
 
@@ -42,8 +86,8 @@ accounts, pre-start validation, reset, strict snapshots and use-after-stop.
 Its last shared-node test fails if any viem test action was not called (the
 list is read from the installed viem, so upgrades that add actions fail until
 they are mapped). Unit tests check that every mutating viem test action has a
-`cheats` step and that the README documents every action, extra, step,
-setting and error code.
+`cheats` step; the docs project checks that the documentation site documents
+(and demonstrates) every action, extra, step, setting and error code.
 
 **Docker mode (default)** – `pnpm test:e2e` runs everything through
 `AnvilContainer` / Testcontainers using the default image. This is what CI/CD
@@ -92,9 +136,12 @@ workspace.
 `scripts/examples.mjs` (behind the `pnpm examples:*` scripts) rebuilds the
 library when `dist/` is older than its inputs, runs `npm ci` when the
 examples' lockfile changed, re-links (installs remove links) and then runs
-the task; pnpm's `npm_*` environment is not passed to npm. Linking uses a
-project-local npm prefix (`examples/.npm-link/`), so the global prefix is
-never touched. Its unit tests guard the link (symlink to this checkout, fresh
+the task (`--coverage`, `--no-docker` and other arguments are forwarded to
+the examples' scripts); pnpm's `npm_*` environment is not passed to npm.
+Linking uses a project-local npm prefix (`examples/.npm-link/`), so the
+global prefix is never touched. The examples create nodes with plain
+`new AnvilContainer(options)`; with `--no-docker`, a Jest setup file routes
+`AnvilContainer.startRuntime()` to a local anvil process. Its unit tests guard the link (symlink to this checkout, fresh
 `dist/`, no dependency leaks, no lifecycle scripts in the library that
 `npm link` would run), the contract artifacts (`examples/artifacts/<Name>/`
 ABI `.json` + creation bytecode `.bin`: both present, ABI and bytecode
@@ -103,9 +150,28 @@ coverage (every viem test action, anvil extra, `cheats` step,
 `TestClientOptions` setting and `StartedAnvilContainer` member is called by
 an example; the README's coverage map matches the code) and the README
 samples (generated from `// #region` blocks of the tests:
-`npm run docs:sync` in `examples/`). Its `--no-docker` mode overrides
-`AnvilContainer.startRuntime()` with a local anvil process. See
-[examples/README.md](examples/README.md).
+`npm run docs:sync` in `examples/`). The same regions are the code samples
+of the documentation site (below). See [examples/README.md](examples/README.md).
+
+### Documentation site
+
+`docs/` is a separate npm project: a [Docusaurus](https://docusaurus.io) site
+published to GitHub Pages by `.github/workflows/docs.yml`. No code on it is
+written by hand:
+
+- **code samples** are `#region` blocks of `examples/` — a fence
+  `` ```ts snippet="examples/<file>#<region>" `` is filled by `pnpm docs:sync`;
+  `pnpm docs:unit` and `docusaurus build` fail when a sample is stale, a code
+  block is unlinked, or a region is shown nowhere;
+- **reference tables** between `<!-- generated:… -->` markers are rendered
+  from the built library (flag registry, error codes, enums, constants);
+- the **README's quick start** is a synced region too.
+
+`pnpm docs:unit` also checks that every public export, option method, flag,
+test action, anvil extra, `cheats` step, client setting, node member and
+error code is documented on the reference pages and demonstrated by a
+sample. When you add API: add an example region, reference it from a task
+page, run `pnpm docs:sync`. Details: [docs/README.md](docs/README.md).
 
 ### Module formats
 

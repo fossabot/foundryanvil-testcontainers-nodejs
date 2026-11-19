@@ -3,6 +3,7 @@
  * block, fee-based ordering, and editing the pending pool.
  */
 import {
+  AnvilContainer,
   AnvilOptions,
   Hardfork,
   Order,
@@ -10,7 +11,6 @@ import {
 } from "@hellaweb3/foundryanvil-testcontainers-nodejs";
 import { type Address, type Hash, parseEther, parseGwei } from "viem";
 import { deployToken, exampleToken, mint } from "../../src";
-import { anvilContainer } from "../support/runtime";
 
 let token: Address;
 
@@ -18,7 +18,7 @@ let token: Address;
 // Blocks are only mined on demand (anvil --no-mining). confirm() and the
 // deploy fixtures mine a block when a transaction is still pending.
 const anvil = useAnvil(
-  anvilContainer(new AnvilOptions().mining.withNoMining()).withTestClient(
+  new AnvilContainer(new AnvilOptions().mining.withNoMining()).withTestClient(
     (client) => client.withAccount(0),
   ),
   {
@@ -192,7 +192,7 @@ describe("mempool and block building", () => {
 describe("first-in, first-out ordering", () => {
   // #region fifo
   const node = useAnvil(
-    anvilContainer(
+    new AnvilContainer(
       new AnvilOptions().mining.withNoMining().state.withOrder(Order.Fifo),
     ),
   );
@@ -221,7 +221,7 @@ describe("first-in, first-out ordering", () => {
 describe("legacy gas pricing (pre-London)", () => {
   // #region legacy-gas
   const node = useAnvil(
-    anvilContainer(new AnvilOptions().evm.withHardfork(Hardfork.Berlin)),
+    new AnvilContainer(new AnvilOptions().evm.withHardfork(Hardfork.Berlin)),
   );
 
   it("sets the gas price the node suggests", async () => {

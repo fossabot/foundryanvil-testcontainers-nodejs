@@ -1,8 +1,7 @@
 /**
- * Foundry Anvil Testcontainers module: {@link AnvilOptions} (fluent config for
- * every anvil flag), {@link AnvilContainer}, {@link StartedAnvilContainer}
- * with its pre-configured viem {@link AnvilTestClient} ({@link TestClientOptions},
- * {@link AnvilCheats}) and {@link useAnvil} for test lifecycle hooks.
+ * Foundry Anvil in Testcontainers: {@link AnvilOptions}, {@link AnvilContainer},
+ * {@link StartedAnvilContainer} with a viem {@link AnvilTestClient}, and {@link useAnvil}.
+ * Docs: https://hella-web3.github.io/foundryanvil-testcontainers-nodejs/
  * @packageDocumentation
  */
 export { AnvilOptions } from "./options/anvil-options";

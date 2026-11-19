@@ -6,6 +6,7 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import {
+  AnvilContainer,
   AnvilOptions,
   StartedAnvilContainer,
 } from "@hellaweb3/foundryanvil-testcontainers-nodejs";
@@ -23,7 +24,6 @@ import {
   fixedPriceOracle,
   mint,
 } from "../../src";
-import { anvilContainer } from "../support/runtime";
 
 let directory: string;
 let fixtureFile: string;
@@ -35,7 +35,7 @@ beforeAll(async () => {
   directory = fs.mkdtempSync(path.join(os.tmpdir(), "anvil-fixture-"));
   fixtureFile = path.join(directory, "fixture.json");
   // #region build-fixture
-  const builder = await anvilContainer()
+  const builder = await new AnvilContainer()
     .withTestClient((client) => client.withAccount(0))
     .start();
   try {
@@ -60,7 +60,7 @@ afterAll(() => fs.rmSync(directory, { recursive: true, force: true }));
 describe("state fixtures", () => {
   it("boots a new node straight from the fixture file", async () => {
     // #region boot-from-fixture
-    const anvil = await anvilContainer(
+    const anvil = await new AnvilContainer(
       new AnvilOptions().state.withLoadState(fixtureFile),
     ).start();
     try {
@@ -76,7 +76,7 @@ describe("state fixtures", () => {
   it("loads the fixture into a running node", async () => {
     let anvil: StartedAnvilContainer | undefined;
     try {
-      anvil = await anvilContainer().start();
+      anvil = await new AnvilContainer().start();
       expect(
         await anvil.testClient.getCode({ address: token }),
       ).toBeUndefined();
@@ -92,7 +92,7 @@ describe("state fixtures", () => {
   });
 
   it("snapshots state in memory with dumpState / loadState", async () => {
-    const anvil = await anvilContainer().start();
+    const anvil = await new AnvilContainer().start();
     try {
       const [alice] = await anvil.addresses();
       // #region dump-in-memory
@@ -139,7 +139,7 @@ describe("state fixtures", () => {
       }),
     );
 
-    const anvil = await anvilContainer(
+    const anvil = await new AnvilContainer(
       new AnvilOptions().state.withInit(genesisFile),
     ).start();
     try {

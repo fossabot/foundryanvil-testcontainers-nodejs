@@ -2,7 +2,10 @@
  * Workflow: replacing an external dependency (here a price oracle at a fixed,
  * "mainnet" address) with a test double by writing code and storage directly.
  */
-import { useAnvil } from "@hellaweb3/foundryanvil-testcontainers-nodejs";
+import {
+  AnvilContainer,
+  useAnvil,
+} from "@hellaweb3/foundryanvil-testcontainers-nodejs";
 import {
   type Address,
   encodeAbiParameters,
@@ -22,7 +25,6 @@ import {
   priceConsumer,
   quote,
 } from "../../src";
-import { anvilContainer } from "../support/runtime";
 
 /** Where the real oracle lives on mainnet; empty on a fresh local chain. */
 const ORACLE: Address = "0x5f4eC3Df9cbd43714FE2740f5E3616155c5b8419";
@@ -32,7 +34,7 @@ let oracleCode: Hex;
 let token: Address;
 
 const anvil = useAnvil(
-  anvilContainer().withTestClient((client) => client.withAccount(0)),
+  new AnvilContainer().withTestClient((client) => client.withAccount(0)),
   {
     setup: async (node) => {
       consumer = await deployPriceConsumer(node.testClient, ORACLE);

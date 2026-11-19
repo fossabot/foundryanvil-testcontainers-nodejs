@@ -11,6 +11,7 @@ import {
   type WalletActions,
   walletActions,
   webSocket,
+  numberToHex,
 } from "viem";
 import {
   type AnvilActionHooks,
@@ -24,12 +25,8 @@ import {
 } from "./test-client-options";
 
 /**
- * The pre-configured viem test client of a started node: every viem test
- * action (`mode: "anvil"`), public action and wallet action, plus
- * {@link AnvilActions}. Bound to the node's actual chain id.
- *
- * `TAccount` is the default account type: with one configured
- * (`TestClientOptions.withAccount()`), actions need no `account` argument.
+ * viem test client (`mode: "anvil"`) with public, wallet and {@link AnvilActions},
+ * bound to the node's chain. With a default account (`TAccount`), actions need no `account`.
  */
 export type AnvilTestClient<TAccount extends Account | undefined = undefined> =
   TestClient<"anvil", Transport, Chain, TAccount> &
@@ -72,20 +69,37 @@ export function createAnvilChain(
   });
 }
 
+/**
+ * Rejects requests after stop, answers `eth_chainId` from `chain` (viem asks
+ * before every node-signed send), and reports chain id changes to the hooks.
+ */
 function guardTransport(
   transport: Transport,
+  chain: Chain,
   assertUsable: (() => void) | undefined,
+  hooks: AnvilActionHooks = {},
 ): Transport {
-  if (!assertUsable) return transport;
   return (parameters: Parameters<Transport>[0]) => {
     const created = transport(parameters);
     const { request } = created;
     return {
       ...created,
-      request: async (args, options) => {
-        assertUsable();
-        return request(args, options);
-      },
+      request: (async (args, options) => {
+        assertUsable?.();
+        if (args.method === "eth_chainId") return numberToHex(chain.id);
+        const result: unknown = await request(args, options);
+        if (args.method === "anvil_setChainId") {
+          const [chainId] = (args.params ?? []) as unknown[];
+          hooks.onChainIdChanged?.(
+            typeof chainId === "string"
+              ? Number(BigInt(chainId))
+              : Number(chainId),
+          );
+        } else if (args.method === "anvil_reset") {
+          await hooks.onReset?.();
+        }
+        return result;
+      }) as typeof request,
     };
   };
 }
@@ -107,10 +121,7 @@ export function createAnvilTransport(
   });
 }
 
-/**
- * @internal Client tuned for a local node: no response caching (viem caches
- * e.g. the block number for 4 s by default) and fast polling.
- */
+/** @internal Client tuned for a local node: no response cache, fast polling, local chain id. */
 export function createAnvilTestClient<
   TAccount extends Account | undefined = undefined,
 >(context: AnvilTestClientContext): AnvilTestClient<TAccount> {
@@ -121,14 +132,14 @@ export function createAnvilTestClient<
     account,
     transport: guardTransport(
       createAnvilTransport(rpcUrl, configuration),
+      chain,
       context.assertUsable,
+      context.hooks,
     ),
     cacheTime: configuration.cacheTime,
     pollingInterval: configuration.pollingInterval,
   })
     .extend(publicActions)
     .extend(walletActions)
-    .extend(
-      createAnvilActions(context.hooks),
-    ) as unknown as AnvilTestClient<TAccount>;
+    .extend(createAnvilActions()) as unknown as AnvilTestClient<TAccount>;
 }

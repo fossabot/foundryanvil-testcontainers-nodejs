@@ -1,8 +1,4 @@
-/**
- * A span of time: seconds (`number` / `bigint`) or a unit object such as
- * `{ days: 7, hours: 12 }` (units are summed).
- * @example await anvil.increaseTime({ days: 7 })
- */
+/** Seconds (`number` / `bigint`) or units such as `{ days: 7, hours: 12 }` (summed). */
 export type Duration =
   | number
   | bigint

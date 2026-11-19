@@ -3,6 +3,7 @@
  * protocol admins — and giving them balances without minting.
  */
 import {
+  AnvilContainer,
   AnvilOptions,
   useAnvil,
 } from "@hellaweb3/foundryanvil-testcontainers-nodejs";
@@ -14,7 +15,6 @@ import {
   exampleToken,
   timeLockVault,
 } from "../../src";
-import { anvilContainer } from "../support/runtime";
 
 /** Not a dev account: nobody here has its private key. */
 const WHALE: Address = "0x00000000219ab540356cBB839Cbe05303d7705Fa";
@@ -23,7 +23,7 @@ let token: Address;
 let vault: Address;
 
 const anvil = useAnvil(
-  anvilContainer().withTestClient((client) => client.withAccount(0)),
+  new AnvilContainer().withTestClient((client) => client.withAccount(0)),
   {
     setup: async (node) => {
       token = await deployToken(node.testClient);
@@ -104,11 +104,13 @@ describe("whales and impersonation", () => {
   });
 
   it("creates a client that *is* the whale (typed default account)", async () => {
+    // #region allowance
     await anvil.cheats
       .setBalanceEther(WHALE, 1)
       .dealErc20(token, WHALE, parseEther("10"))
       // Allowances can be written directly too — no approve() transaction.
       .setErc20Allowance(token, WHALE, vault, parseEther("10"));
+    // #endregion allowance
     // #region whale-client
     const whale = await anvil.createTestClient((client) =>
       client.withAccount(WHALE, { impersonate: true }),
@@ -168,6 +170,25 @@ describe("whales and impersonation", () => {
     // #endregion stop-impersonating
   });
 
+  it("uses viem's impersonation actions directly", async () => {
+    const [, alice] = await anvil.addresses();
+    await anvil.cheats.setBalanceEther(WHALE, 1);
+    // #region viem-impersonation
+    await anvil.testClient.impersonateAccount({ address: WHALE });
+    try {
+      await anvil.confirm(
+        anvil.testClient.sendTransaction({
+          account: WHALE,
+          to: alice,
+          value: 1n,
+        }),
+      );
+    } finally {
+      await anvil.testClient.stopImpersonatingAccount({ address: WHALE });
+    }
+    // #endregion viem-impersonation
+  });
+
   it("predicts CREATE addresses by setting the deployer's nonce", async () => {
     await anvil.cheats.setBalanceEther(WHALE, 1);
     // #region set-nonce
@@ -198,7 +219,7 @@ describe("auto-impersonation", () => {
   // #region auto-impersonate
   // Every sender is impersonated: no per-address impersonate() calls.
   const node = useAnvil(
-    anvilContainer(new AnvilOptions().account.autoImpersonate()),
+    new AnvilContainer(new AnvilOptions().account.autoImpersonate()),
   );
 
   it("sends from any address", async () => {

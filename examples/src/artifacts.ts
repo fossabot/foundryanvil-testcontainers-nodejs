@@ -21,6 +21,7 @@ export interface ContractArtifact {
   readonly bytecode: Hex;
 }
 
+// #region load-artifact
 /** Loads `artifacts/<name>/<name>.json` and `.bin`. */
 export function loadArtifact(name: string): ContractArtifact {
   return {
@@ -29,6 +30,7 @@ export function loadArtifact(name: string): ContractArtifact {
     bytecode: loadContractBytecode(`${name}/${name}.bin`, ARTIFACTS_DIR),
   };
 }
+// #endregion load-artifact
 
 /** ERC-20 with `mint` (owner only) and custom errors `NotOwner`, `InsufficientBalance`, `InsufficientAllowance`. */
 export const exampleToken = loadArtifact("ExampleToken");

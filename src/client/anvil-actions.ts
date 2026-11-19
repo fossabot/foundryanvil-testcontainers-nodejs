@@ -10,13 +10,9 @@ import {
   type TransactionReceipt,
   TransactionReceiptNotFoundError,
   type Transport,
+  WaitForTransactionReceiptTimeoutError,
 } from "viem";
-import {
-  call,
-  getTransaction,
-  getTransactionReceipt,
-  waitForTransactionReceipt,
-} from "viem/actions";
+import { call, getTransaction, getTransactionReceipt } from "viem/actions";
 import {
   AnvilTestClientError,
   AnvilTransactionRevertedError,
@@ -44,23 +40,13 @@ export interface ConfirmTransactionParameters {
 }
 
 /**
- * anvil-specific actions added to the test client (viem style: one object
- * argument). They cover anvil RPC methods viem does not wrap and replace two
- * viem test actions with stricter versions:
- *
- * - `reset()` without arguments resets a non-forked node to genesis (viem's
- *   version fails there) and re-forks a forked node at its fork block (a
- *   bare `anvil_reset` would detach it from the fork);
- * - `revert()` throws when the snapshot does not exist (viem ignores
- *   anvil's `false`, so the test would silently continue on dirty state).
+ * anvil RPC methods viem doesn't wrap, plus fixed `reset()` and strict
+ * `revert()` replacing viem's versions.
  */
 export type AnvilActions = {
   /** Adds wei to a balance (`anvil_addBalance`). */
   addBalance(args: { address: Address; value: bigint }): Promise<void>;
-  /**
-   * Sets the ERC-20 balance of `address` (`anvil_dealERC20`); works for
-   * standard tokens by locating the balance storage slot.
-   */
+  /** Sets the ERC-20 balance of `address` of a standard token (`anvil_dealERC20`). */
   dealErc20(args: {
     token: Address;
     address: Address;
@@ -73,11 +59,7 @@ export type AnvilActions = {
     spender: Address;
     amount: bigint;
   }): Promise<void>;
-  /**
-   * Changes the chain id (`anvil_setChainId`). The container's test client,
-   * `chain` and `chainId` follow automatically; clients you built yourself
-   * need a new `chain`.
-   */
+  /** Changes the chain id (`anvil_setChainId`); the container's clients follow, your own need a new `chain`. */
   setChainId(args: { chainId: number }): Promise<void>;
   /** Sets the current time; following blocks continue from it (`evm_setTime`). */
   setTime(args: { timestamp: Timestamp }): Promise<void>;
@@ -91,10 +73,7 @@ export type AnvilActions = {
   removePoolTransactions(args: { address: Address }): Promise<void>;
   /** Removes the last `depth` blocks (default 1) (`anvil_rollback`). */
   rollback(args?: { depth?: number }): Promise<void>;
-  /**
-   * Replaces the last `depth` blocks with new ones, optionally containing
-   * `transactions` (`anvil_reorg`).
-   */
+  /** Replaces the last `depth` blocks, optionally with `transactions` (`anvil_reorg`). */
   reorg(args: {
     depth: number;
     transactions?: readonly ReorgTransaction[];
@@ -104,34 +83,29 @@ export type AnvilActions = {
   /** `anvil_metadata`. */
   getMetadata(): Promise<AnvilMetadata>;
   /**
-   * `anvil_reset`. Without arguments: a non-forked node returns to genesis,
-   * a forked node re-forks at its current fork block (read from
-   * `anvil_nodeInfo`; a bare `anvil_reset` would detach it from the fork).
-   * `{ blockNumber }` re-forks a forked node at another block, `{ jsonRpcUrl }`
-   * (re-)forks from a URL. Discards local changes and all snapshots.
+   * Back to genesis, or to the fork block on a fork (a bare `anvil_reset` would
+   * detach it); `{ blockNumber }` / `{ jsonRpcUrl }` re-fork. Discards all snapshots.
    */
   reset(args?: AnvilResetParameters): Promise<void>;
   /**
-   * `evm_revert`, strict: throws {@link AnvilTestClientError}
-   * `SNAPSHOT_NOT_FOUND` when the snapshot does not exist.
+   * Strict `evm_revert`.
+   * @throws AnvilTestClientError `SNAPSHOT_NOT_FOUND` for unknown or used snapshots
    */
   revert(args: { id: Hex }): Promise<void>;
   /**
-   * Waits for a receipt, mining a block first when automine is off (so
-   * tests never hang on `--no-mining`). Throws
-   * {@link AnvilTransactionRevertedError} (with the revert reason when
-   * recoverable) unless `throwOnRevert: false`.
+   * Receipt of a transaction; mines a block when automine is off.
+   * @throws AnvilTransactionRevertedError when it reverted (unless `throwOnRevert: false`)
    */
   confirmTransaction(
     args: ConfirmTransactionParameters,
   ): Promise<TransactionReceipt>;
 };
 
-/** @internal Hooks used by the container's own client. */
+/** @internal Called by the container clients' transport after a request succeeded. */
 export interface AnvilActionHooks {
   /** Called after `anvil_setChainId` succeeded. */
   onChainIdChanged?(chainId: number): void;
-  /** Called after `anvil_reset` succeeded. */
+  /** Called after `anvil_reset` succeeded (it may re-fork another chain). */
   onReset?(): Promise<void>;
 }
 
@@ -206,7 +180,27 @@ async function revertReason(
   }
 }
 
-/** @internal */
+/** `eth_getTransactionReceipt`, or `undefined` while the transaction is not mined. */
+async function findReceipt(
+  client: AnyClient,
+  hash: Hash,
+): Promise<TransactionReceipt | undefined> {
+  try {
+    return await getTransactionReceipt(client, { hash });
+  } catch (error: unknown) {
+    // Pending (or unknown) transactions have no receipt yet; rethrow the rest.
+    if (error instanceof TransactionReceiptNotFoundError) return undefined;
+    throw error;
+  }
+}
+
+/** First delay between receipt polls; doubles up to the client's polling interval. */
+const FIRST_RECEIPT_POLL_MS = 1;
+
+/**
+ * @internal anvil returns an automined hash just before the block is committed:
+ * re-read the receipt at once, then with a short backoff (not viem's block watcher).
+ */
 export async function confirmTransaction(
   client: AnyClient,
   {
@@ -215,19 +209,27 @@ export async function confirmTransaction(
     timeout = 30_000,
   }: ConfirmTransactionParameters,
 ): Promise<TransactionReceipt> {
-  let receipt = await getTransactionReceipt(client, { hash }).catch(
-    (error: unknown) => {
-      // Pending (or unknown) transactions have no receipt yet; rethrow the rest.
-      if (error instanceof TransactionReceiptNotFoundError) return undefined;
-      throw error;
-    },
-  );
+  const deadline = Date.now() + timeout;
+  let receipt = await findReceipt(client, hash);
   if (!receipt) {
-    const automine = await request<boolean>(client, "anvil_getAutomine").catch(
-      () => true,
-    );
-    if (!automine) await request(client, "anvil_mine", [numberToHex(1)]);
-    receipt = await waitForTransactionReceipt(client, { hash, timeout });
+    const [again, automine] = await Promise.all([
+      findReceipt(client, hash),
+      request<boolean>(client, "anvil_getAutomine").catch(() => true),
+    ]);
+    receipt = again;
+    if (!receipt && !automine) {
+      await request(client, "anvil_mine", [numberToHex(1)]);
+    }
+    const maxDelay = Math.max(FIRST_RECEIPT_POLL_MS, client.pollingInterval);
+    for (let delay = FIRST_RECEIPT_POLL_MS; !receipt;) {
+      receipt = await findReceipt(client, hash);
+      if (receipt) break;
+      if (Date.now() + delay > deadline) {
+        throw new WaitForTransactionReceiptTimeoutError({ hash });
+      }
+      await new Promise((resolve) => setTimeout(resolve, delay));
+      delay = Math.min(delay * 2, maxDelay);
+    }
   }
   if (receipt.status === "reverted" && throwOnRevert) {
     throw new AnvilTransactionRevertedError(
@@ -238,8 +240,8 @@ export async function confirmTransaction(
   return receipt;
 }
 
-/** @internal {@link anvilActions} with hooks for the container's own client. */
-export function createAnvilActions(hooks: AnvilActionHooks = {}) {
+/** @internal The {@link anvilActions} implementation. */
+export function createAnvilActions() {
   return (client: AnyClient): AnvilActions => ({
     addBalance: async ({ address, value }) => {
       await request(client, "anvil_addBalance", [address, numberToHex(value)]);
@@ -263,7 +265,6 @@ export function createAnvilActions(hooks: AnvilActionHooks = {}) {
       await request(client, "anvil_setChainId", [
         positiveInteger("setChainId", chainId),
       ]);
-      hooks.onChainIdChanged?.(chainId);
     },
     setTime: async ({ timestamp }) => {
       await request(client, "evm_setTime", [
@@ -323,7 +324,6 @@ export function createAnvilActions(hooks: AnvilActionHooks = {}) {
         "anvil_reset",
         Object.keys(forking).length === 0 ? [] : [{ forking }],
       );
-      await hooks.onReset?.();
     },
     revert: ({ id }) => strictRevert(client, id),
     confirmTransaction: (args) => confirmTransaction(client, args),
@@ -331,9 +331,8 @@ export function createAnvilActions(hooks: AnvilActionHooks = {}) {
 }
 
 /**
- * viem decorator adding {@link AnvilActions} to any client, e.g. one you
- * build yourself: `createTestClient({ mode: "anvil", … }).extend(anvilActions)`.
- * The container's `testClient` already includes it.
+ * Adds {@link AnvilActions} to your own viem clients: `client.extend(anvilActions)`.
+ * @see {@link https://hella-web3.github.io/foundryanvil-testcontainers-nodejs/docs/reference/anvil-actions | anvil extras reference} (docs)
  */
 export const anvilActions: (client: AnyClient) => AnvilActions =
   createAnvilActions();

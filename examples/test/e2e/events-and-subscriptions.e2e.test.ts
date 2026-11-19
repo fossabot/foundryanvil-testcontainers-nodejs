@@ -6,7 +6,10 @@
  * test repeats its trigger until the watcher reports it (`triggerUntil`)
  * instead of sleeping and hoping the subscription is already live.
  */
-import { useAnvil } from "@hellaweb3/foundryanvil-testcontainers-nodejs";
+import {
+  AnvilContainer,
+  useAnvil,
+} from "@hellaweb3/foundryanvil-testcontainers-nodejs";
 import {
   type Address,
   type Block,
@@ -19,7 +22,6 @@ import {
   zeroAddress,
 } from "viem";
 import { deployToken, exampleToken, mint, triggerUntil } from "../../src";
-import { anvilContainer } from "../support/runtime";
 
 let token: Address;
 
@@ -33,7 +35,7 @@ const TRANSFER = parseAbiItem(
 
 // #region websocket
 const anvil = useAnvil(
-  anvilContainer().withTestClient((client) =>
+  new AnvilContainer().withTestClient((client) =>
     client.withAccount(0).withTransport("webSocket"),
   ),
   { setup: async (node) => void (token = await deployToken(node.testClient)) },

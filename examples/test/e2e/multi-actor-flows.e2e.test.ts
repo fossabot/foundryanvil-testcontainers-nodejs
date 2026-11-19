@@ -4,6 +4,7 @@
  */
 import {
   anvilActions,
+  AnvilContainer,
   useAnvil,
 } from "@hellaweb3/foundryanvil-testcontainers-nodejs";
 import {
@@ -21,12 +22,11 @@ import {
   exampleToken,
   mint,
 } from "../../src";
-import { anvilContainer } from "../support/runtime";
 
 let token: Address;
 
 const anvil = useAnvil(
-  anvilContainer().withTestClient((client) => client.withAccount(0)),
+  new AnvilContainer().withTestClient((client) => client.withAccount(0)),
   {
     setup: async (node) => {
       const [, alice] = await node.addresses();
@@ -219,9 +219,11 @@ describe("multi-actor flows", () => {
   it("sends Ether between dev accounts with a one-liner", async () => {
     const [, alice, bob] = await anvil.addresses();
     const before = await anvil.getBalance(bob);
-    const receipt = await anvil.sendEthTransaction(alice, bob, "1.5");
+    // #region send-eth
+    const receipt = await anvil.sendEthTransaction(alice, bob, "1.5"); // Ether
     expect(receipt.status).toBe("success");
     expect(await anvil.getBalance(bob)).toBe(before + parseEther("1.5"));
+    // #endregion send-eth
   });
 
   it("works with clients you build yourself", async () => {

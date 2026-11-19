@@ -3,6 +3,7 @@
  * and simulate regular block times.
  */
 import {
+  AnvilContainer,
   AnvilOptions,
   AnvilTransactionRevertedError,
   useAnvil,
@@ -18,7 +19,6 @@ import {
   timeLockVault,
   vaultLock,
 } from "../../src";
-import { anvilContainer } from "../support/runtime";
 
 const LOCK_DURATION = 30n * 24n * 60n * 60n; // 30 days
 
@@ -27,7 +27,7 @@ let vault: Address;
 let alice: Address;
 
 const anvil = useAnvil(
-  anvilContainer().withTestClient((client) => client.withAccount(0)),
+  new AnvilContainer().withTestClient((client) => client.withAccount(0)),
   {
     setup: async (node) => {
       [, alice] = await node.addresses();
@@ -55,12 +55,15 @@ const anvil = useAnvil(
   },
 );
 
+// #region withdraw-helper
+/** Simulates alice's withdrawal from the vault (throws while locked). */
 const withdraw = () =>
   anvil.testClientFor(alice).simulateContract({
     address: vault,
     abi: timeLockVault.abi,
     functionName: "withdraw",
   });
+// #endregion withdraw-helper
 
 describe("time travel", () => {
   it("rejects withdrawals while the deposit is locked", async () => {
@@ -155,7 +158,7 @@ describe("interval mining and a fixed genesis time", () => {
   // #region interval-mining
   const GENESIS = new Date("2030-06-01T00:00:00Z");
   const node = useAnvil(
-    anvilContainer(
+    new AnvilContainer(
       new AnvilOptions().mining
         .withBlockTime(1) // a block every second, like a real chain
         .state.withTimestamp(GENESIS),
@@ -191,7 +194,7 @@ describe("mixed mining", () => {
   // #region mixed-mining
   // Transactions are mined at once (automine) AND a block comes every second.
   const node = useAnvil(
-    anvilContainer(
+    new AnvilContainer(
       new AnvilOptions().mining.withBlockTime(1).withMixedMining(),
     ),
     { isolation: "none" },

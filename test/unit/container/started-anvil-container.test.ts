@@ -24,6 +24,7 @@ import {
   deriveAccountKeys,
   parsePrivateKeysFromBanner,
 } from "../../../src/container/started-anvil-container";
+import { computeAccountKeys } from "../../../src/client/keys";
 import {
   FakeStartedTestContainer,
   buildTar,
@@ -167,6 +168,37 @@ describe("StartedAnvilContainer", () => {
           reference(mnemonic, `${path}${index}`),
         );
       }
+    });
+
+    it("precomputes the default mnemonic's keys exactly as derived", () => {
+      const derived = computeAccountKeys(
+        DEFAULT_MNEMONIC,
+        "m/44'/60'/0'/0/",
+        20,
+      );
+      expect(
+        deriveAccountKeys(DEFAULT_MNEMONIC, "m/44'/60'/0'/0/", 20),
+      ).toEqual(derived);
+      expect(deriveAccountKeys(DEFAULT_MNEMONIC, "m/44'/60'/0'/0/", 3)).toEqual(
+        derived.slice(0, 3),
+      );
+      // Beyond the table, the keys are derived.
+      const many = deriveAccountKeys(DEFAULT_MNEMONIC, "m/44'/60'/0'/0/", 21);
+      expect(many).toHaveLength(21);
+      expect(many.slice(0, 20)).toEqual(derived);
+    });
+
+    it("memoizes derivations and hands out copies", () => {
+      const phrase =
+        "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about";
+      const first = deriveAccountKeys(phrase, "m/44'/60'/0'/0/", 3);
+      first[0] = "0xdead";
+      const again = deriveAccountKeys(phrase, "m/44'/60'/0'/0/", 2);
+      expect(again).toEqual(computeAccountKeys(phrase, "m/44'/60'/0'/0/", 2));
+      again[1] = "0xbeef";
+      expect(deriveAccountKeys(phrase, "m/44'/60'/0'/0/", 3)).toEqual(
+        computeAccountKeys(phrase, "m/44'/60'/0'/0/", 3),
+      );
     });
 
     it("parses keys from the startup banner for random mnemonics", async () => {
@@ -729,6 +761,44 @@ describe("StartedAnvilContainer", () => {
       await expect(
         container.createTestClient((o) => o.withAccount(3)),
       ).rejects.toBeInstanceOf(AnvilTestClientConfigurationError);
+    });
+
+    it("answers getChainId() locally: node-signed sends need no eth_chainId", async () => {
+      const container = withClient(new TestClientOptions().withAccount(0));
+      await container.initialize();
+      rpc.calls.length = 0;
+      expect(await container.testClient.getChainId()).toBe(31337);
+      await container.testClient.sendTransaction({
+        to: rpc.accounts[1],
+        value: 1n,
+      });
+      expect(rpc.calls.map((call) => call.method)).toEqual([
+        "eth_sendTransaction",
+      ]);
+    });
+
+    it("follows chain id changes made through raw requests", async () => {
+      const container = started();
+      await container.rpc("anvil_setChainId", ["0xa"]); // hex…
+      expect(container.chainId).toBe(10);
+      await container.testClient.request({
+        method: "anvil_setChainId",
+        params: [11], // …or a number
+      } as never);
+      expect(await container.testClient.getChainId()).toBe(11);
+
+      rpc.chainId = 7; // e.g. re-forked onto another chain
+      await container.rpc("anvil_reset", []);
+      expect(container.chainId).toBe(7);
+      expect(container.testClientFor(rpc.accounts[1]).chain.id).toBe(7);
+    });
+
+    it("explains a chain id that cannot be re-read after a reset", async () => {
+      const container = started();
+      rpc.failNext.set("eth_chainId", { code: -32000, message: "node busy" });
+      await expect(container.rpc("anvil_reset", [])).rejects.toThrow(
+        /Could not read the chain id of .* after anvil_reset: .*node busy/,
+      );
     });
 
     it("follows chain id changes made through the client", async () => {

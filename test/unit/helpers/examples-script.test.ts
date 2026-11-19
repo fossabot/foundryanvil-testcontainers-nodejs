@@ -8,6 +8,10 @@ const SCRIPT = fs.readFileSync(
   path.join(ROOT, "scripts", "examples.mjs"),
   "utf8",
 );
+const SHARED = fs.readFileSync(
+  path.join(ROOT, "scripts", "lib", "projects.mjs"),
+  "utf8",
+);
 const fixtureRoots: string[] = [];
 
 afterEach(() => {
@@ -20,12 +24,13 @@ function fixture() {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "examples-script-"));
   fixtureRoots.push(root);
   const examples = path.join(root, "examples");
-  fs.mkdirSync(path.join(root, "scripts"), { recursive: true });
+  fs.mkdirSync(path.join(root, "scripts", "lib"), { recursive: true });
   fs.mkdirSync(path.join(root, "src"), { recursive: true });
   fs.mkdirSync(path.join(root, "dist"), { recursive: true });
   fs.mkdirSync(path.join(examples, "node_modules"), { recursive: true });
   fs.mkdirSync(path.join(examples, "scripts"), { recursive: true });
   fs.writeFileSync(path.join(root, "scripts", "examples.mjs"), SCRIPT);
+  fs.writeFileSync(path.join(root, "scripts", "lib", "projects.mjs"), SHARED);
   fs.writeFileSync(path.join(root, "scripts", "compact-dist.mjs"), "");
   fs.writeFileSync(path.join(root, "src", "input.ts"), "export {};\n");
   fs.writeFileSync(path.join(root, "package.json"), "{}\n");

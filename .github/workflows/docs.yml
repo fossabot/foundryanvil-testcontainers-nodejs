@@ -1,0 +1,97 @@
+name: Docs
+
+# Builds the documentation site and publishes it to GitHub Pages.
+# Samples come from examples/ and reference tables from the library (src/),
+# so changes there rebuild the site too.
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'docs/**'
+      - 'examples/**'
+      - 'src/**'
+      - 'README.md'
+      - '.github/workflows/docs.yml'
+  pull_request:
+    paths:
+      - 'docs/**'
+      - 'examples/**'
+      - 'src/**'
+      - 'README.md'
+      - '.github/workflows/docs.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# One deployment at a time; never cancel one that is in progress.
+concurrency:
+  group: pages-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  build:
+    name: Build and verify the docs
+    runs-on: ubuntu-latest
+    env:
+      DEPLOY: ${{ github.event_name != 'pull_request' && github.ref == 'refs/heads/main' }}
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v7
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6 # version: package.json "packageManager"
+
+      - name: Setup Node.js 24
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: 'pnpm'
+
+      - name: Install library dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build the library
+        run: pnpm build
+
+      # Pages URL and base path (project site or custom domain).
+      - name: Configure GitHub Pages
+        id: pages
+        if: env.DEPLOY == 'true'
+        uses: actions/configure-pages@v6
+
+      - name: Sync check, typecheck, lint and unit-test the docs (with coverage)
+        run: pnpm docs:unit --coverage
+
+      # Runs every example behind the samples against anvil in Docker, then
+      # builds the site and checks that the built pages show those samples.
+      - name: Run the samples, build the site and check it
+        run: pnpm docs:e2e
+        env:
+          DOCS_URL: ${{ steps.pages.outputs.origin }}
+          DOCS_BASE_URL: ${{ env.DEPLOY == 'true' && format('{0}/', steps.pages.outputs.base_path) || '' }}
+
+      - name: Upload the site
+        if: env.DEPLOY == 'true'
+        uses: actions/upload-pages-artifact@v5
+        with:
+          path: docs/build
+
+  deploy:
+    name: Deploy to GitHub Pages
+    needs: build
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - name: Deploy
+        id: deployment
+        uses: actions/deploy-pages@v5

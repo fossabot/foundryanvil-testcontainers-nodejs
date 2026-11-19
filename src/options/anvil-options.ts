@@ -11,18 +11,10 @@ import "./server-options";
 import "./state-options";
 
 /**
- * Fluent, validated configuration covering every anvil flag. Groups mirror
- * `anvil --help`: `account`, `evm`, `fork`, `mining`, `logs`, `network`,
- * `server`, `state`. Invalid values and conflicting flags throw immediately;
- * dependencies are checked by `validate()` / `build()` / `start()`; arguments
- * render in a deterministic, order-independent way.
- *
- * @example
- * const options = new AnvilOptions()
- *   .account.withAccounts(5).withBalance(1_000)
- *   .evm.withChainId(1337).withHardfork(Hardfork.Cancun)
- *   .mining.withBlockTime(1);
- * const anvil = await new AnvilContainer(options).start();
+ * Every anvil flag, in groups mirroring `anvil --help`. Invalid values and
+ * conflicts throw at once; dependencies are checked by `validate()` / `start()`.
+ * @example new AnvilOptions().account.withAccounts(5).evm.withChainId(1337).mining.withBlockTime(1)
+ * @see {@link https://hella-web3.github.io/foundryanvil-testcontainers-nodejs/docs/reference/anvil-options | Every flag, by group} (docs)
  */
 export class AnvilOptions extends OptionsView {
   /** Creates an empty configuration (anvil defaults). `store` is internal. */

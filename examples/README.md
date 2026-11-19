@@ -1,8 +1,12 @@
 # Examples: advanced workflows with the viem test client
 
 Real, tested workflows for
-[`@hellaweb3/foundryanvil-testcontainers-nodejs`](../../../Downloads/flagfix-4526cb18-cc96-4a8d-9b94-8ace65f9d950-final/files/foundryanvil-testcontainers-nodejs-main/README.md): anvil in a
+[`@hellaweb3/foundryanvil-testcontainers-nodejs`](../README.md): anvil in a
 Testcontainer plus its pre-configured, strongly typed viem test client.
+
+> 📖 **Looking for a specific task?** The [documentation site](https://hella-web3.github.io/foundryanvil-testcontainers-nodejs/)
+> organises these examples by what you want to do — every code sample there
+> is synced from the `#region` blocks of these files and checked in CI.
 
 This folder is a **separate npm project** that consumes the library the way
 an end user's project would — through `npm link` to this checkout — and is
@@ -14,6 +18,7 @@ source).
 - [Running the examples](#running-the-examples)
 - [How the library is linked](#how-the-library-is-linked)
 - [API coverage map](#api-coverage-map)
+- [Quick start](#quick-start)
 - [Workflows](#workflows)
   1. [Fixtures and isolation](#1-fixtures-and-isolation)
   2. [Multiple actors](#2-multiple-actors)
@@ -31,6 +36,10 @@ source).
   14. [Node configuration](#14-node-configuration)
   15. [Debugging and tracing](#15-debugging-and-tracing)
   16. [Catching misconfiguration in unit tests](#16-catching-misconfiguration-in-unit-tests)
+  17. [Lifecycle control](#17-lifecycle-control)
+  18. [Scripting with cheats](#18-scripting-with-cheats)
+  19. [Composing and inspecting options](#19-composing-and-inspecting-options)
+- [Example helpers](#example-helpers)
 - [Contract artifacts](#contract-artifacts)
 - [Behaviours worth knowing](#behaviours-worth-knowing)
 - [Project layout and scripts](#project-layout-and-scripts)
@@ -41,7 +50,7 @@ From the repository root (builds the library when its sources changed,
 installs this project, links the library, then runs):
 
 ```shell
-pnpm examples:test               # type-check + lint + unit tests
+pnpm examples:unit [--coverage]  # type-check + lint + unit tests
 pnpm examples:e2e                # workflows against anvil in Docker (CI)
 pnpm examples:e2e --no-docker    # workflows against a local anvil binary (local testing only)
 ```
@@ -51,7 +60,7 @@ Or inside `examples/`, like any npm project:
 ```shell
 npm ci
 npm run link:library             # after every npm install / npm ci
-npm run typecheck && npm run lint && npm test
+npm run typecheck && npm run lint && npm run test:unit
 npm run test:e2e                 # Docker
 npm run test:e2e -- --no-docker  # local anvil binary
 ```
@@ -60,13 +69,13 @@ npm run test:e2e -- --no-docker  # local anvil binary
 devDependency (or `ANVIL_BINARY`, `anvil` on the `PATH`, `~/.foundry/bin`).
 It is for machines without Docker; CI must run the Docker mode.
 
-The tests create containers with `anvilContainer(options)`
-([test/support/runtime.ts](test/support/runtime.ts)): that is
-`new AnvilContainer(options)` in Docker mode and a `LocalAnvilContainer` with
-`--no-docker`. The local runtime overrides the library's
-`AnvilContainer.startRuntime()` extension point, so validation, the test
-client and error handling are the library's own in both modes
-([test/support/local-anvil.ts](test/support/local-anvil.ts)).
+The tests create nodes exactly like your code would:
+`new AnvilContainer(options)`. With `--no-docker`, a Jest setup file
+([test/support/setup-runtime.ts](test/support/setup-runtime.ts)) routes the
+library's `AnvilContainer.startRuntime()` extension point to a local anvil
+process ([test/support/local-anvil.ts](test/support/local-anvil.ts)), so
+validation, the test client and error handling are the library's own in both
+modes and every sample can be copied as is.
 
 ## How the library is linked
 
@@ -103,21 +112,74 @@ every viem test action, every anvil extra, every `cheats` step and every
 
 | Workflow | Test client / container API | anvil & client options |
 |---|---|---|
+| [Quick start](test/e2e/quick-start.e2e.test.ts) | `useAnvil` `addresses` `confirm` `sendTransaction` `cheats` `setBalanceEther` `impersonate` `increaseTime` `mine` | `withAccounts` `withBalance` `withChainId` `withHardfork` `quiet` `withAccount` |
 | [Fixtures and isolation](test/e2e/fixtures-and-isolation.e2e.test.ts) | `useAnvil` `accounts` `checkpoint` `snapshot` `revert` `withSnapshot` `reset` `contractAbi` | `withMnemonic` `withAccounts` `withBalance` |
 | [Multiple actors](test/e2e/multi-actor-flows.e2e.test.ts) | `testClientFor` `simulateContract` `writeContract` `multicall` `writeContractSync` `sendTransactionSync` `createTestClient` `sendEthTransaction` | `withBatch` |
 | [Time travel](test/e2e/time-travel.e2e.test.ts) | `increaseTime` `setNextBlockTimestamp` `setTime` `setBlockTimestampInterval` `removeBlockTimestampInterval` `mine` `getIntervalMining` `setIntervalMining` | `withBlockTime` `withMixedMining` `withTimestamp` |
 | [Custom errors and reverts](test/e2e/custom-errors.e2e.test.ts) | `simulateContract` `writeContract` `confirm` `call` |  |
-| [Whales and impersonation](test/e2e/whales-and-impersonation.e2e.test.ts) | `setBalance` `addBalance` `dealErc20` `setErc20Allowance` `impersonate` `stopImpersonating` `withImpersonation` `setAutoImpersonate` `sendUnsignedTransaction` `setNonce` `step` | `autoImpersonate` |
+| [Whales and impersonation](test/e2e/whales-and-impersonation.e2e.test.ts) | `setBalance` `addBalance` `dealErc20` `setErc20Allowance` `impersonate` `stopImpersonating` `withImpersonation` `impersonateAccount` `stopImpersonatingAccount` `setAutoImpersonate` `sendUnsignedTransaction` `setNonce` `step` | `autoImpersonate` |
 | [Mempool and block building](test/e2e/mempool-and-blocks.e2e.test.ts) | `getTxpoolStatus` `getTxpoolContent` `inspectTxpool` `dropTransaction` `removePoolTransactions` `dropAllTransactions` `setAutomine` `getAutomine` `setBlockGasLimit` `setCoinbase` `setNextBlockBaseFeePerGas` `setMinGasPrice` | `withNoMining` `withOrder` `withHardfork` |
 | [Events and subscriptions](test/e2e/events-and-subscriptions.e2e.test.ts) | `watchContractEvent` `watchBlocks` `watchPendingTransactions` `createEventFilter` `getFilterChanges` `getLogs` `getContractEvents` | `withTransport` |
 | [Simulation and gas](test/e2e/simulation-and-gas.e2e.test.ts) | `simulateBlocks` `simulateCalls` `call` `createAccessList` `estimateContractGas` `estimateFeesPerGas` `getFeeHistory` `fillTransaction` `getProof` |  |
 | [Mocking dependencies](test/e2e/mocking-dependencies.e2e.test.ts) | `setCode` `setStorageAt` `getStorageAt` `simulateContract` |  |
 | [State fixtures and genesis](test/e2e/state-fixtures.e2e.test.ts) | `dumpStateToFile` `loadStateFromFile` `dumpState` `loadState` | `withLoadState` `withInit` |
-| [Forking](test/e2e/forking.e2e.test.ts) | `reset` `setRpcUrl` `metadata` `nodeInfo` | `withForkUrl` `withRetries` `withForkRetryBackoff` `withTimeout` `noStorageCaching` `noRateLimit` `withHardfork` |
+| [Forking](test/e2e/forking.e2e.test.ts) | `reset` `setRpcUrl` `metadata` `nodeInfo` | `withForkUrl` `withForkBlockNumber` `withForkTransactionHash` `withForkChainId` `withForkHeader` `withComputeUnitsPerSecond` `withRetries` `withForkRetryBackoff` `withTimeout` `noStorageCaching` `noRateLimit` `withHardfork` |
 | [Signing, key material and EIP-7702](test/e2e/signing.e2e.test.ts) | `signMessage` `signTypedData` `signTransaction` `sendRawTransaction` `prepareTransactionRequest` `signAuthorization` | `withLocalAccount` `withDerivationPath` `withRandomMnemonic` `withMnemonicSeedUnsafe` |
 | [Chain configuration and reorgs](test/e2e/chain-config-and-reorgs.e2e.test.ts) | `getNodeInfo` `getMetadata` `reorg` `rollback` `setChainId` `createTestClient` | `withChainId` `withHardfork` `withGasLimit` `withBlockBaseFeePerGas` `withCacheTime` `withChain` |
-| [Node configuration](test/e2e/node-configuration.e2e.test.ts) | `getMappedPort` `logText` `getCode` | `withAllowOrigin` `noCors` `withCodeSizeLimit` `disableDefaultCreate2Deployer` `disableBlockGasLimit` `withPruneHistory` `withBlockNumber` `withPort` `quiet` |
+| [Node configuration](test/e2e/node-configuration.e2e.test.ts) | `getMappedPort` `logText` `getCode` `getGasPrice` `getTxpoolStatus` `sendUnsignedTransaction` | `withAllowOrigin` `noCors` `noRequestSizeLimit` `withCodeSizeLimit` `disableCodeSizeLimit` `disablePoolBalanceChecks` `withGasPrice` `disableMinPriorityFee` `withSlotsInAnEpoch` `disableDefaultCreate2Deployer` `disableBlockGasLimit` `withPruneHistory` `withTransactionBlockKeeper` `withBlockNumber` `withPort` `quiet` |
 | [Debugging and tracing](test/e2e/debugging-and-tracing.e2e.test.ts) | `rpc` `logText` `setLoggingEnabled` | `withPrintTraces` `withStepsTracing` `verboseLogs` `withColor` |
+| [Lifecycle control](test/e2e/lifecycle.e2e.test.ts) | `start` `stop` `isStopped` `useAnvil` | `withStartupTimeout` `quiet` |
+| [Scripting with cheats](test/e2e/cheats.e2e.test.ts) | `cheats` `plan` `run` `catch` `finally` `setBalanceEther` `setMinGasPrice` `mine` |  |
+
+## Quick start
+
+[test/e2e/quick-start.e2e.test.ts](test/e2e/quick-start.e2e.test.ts) — the
+sample of the library README and the docs' quick start, as a complete test
+file:
+
+<!-- snippet: test/e2e/quick-start.e2e.test.ts#quick-start -->
+```ts
+import {
+  AnvilContainer,
+  AnvilOptions,
+  Hardfork,
+  useAnvil,
+} from "@hellaweb3/foundryanvil-testcontainers-nodejs";
+import { parseEther } from "viem";
+
+const options = new AnvilOptions().account
+  .withAccounts(5)
+  .withBalance(1_000) // ETH per dev account
+  .evm.withChainId(1337)
+  .withHardfork(Hardfork.Cancun)
+  .logs.quiet();
+
+// Starts in beforeAll, stops in afterAll, restores the state after every test.
+const anvil = useAnvil(
+  new AnvilContainer(options).withTestClient((client) => client.withAccount(0)),
+);
+
+it("sends Ether", async () => {
+  const [, bob] = await anvil.addresses();
+  // No `account` needed: dev account 0 is the typed default signer.
+  const receipt = await anvil.confirm(
+    anvil.testClient.sendTransaction({ to: bob, value: parseEther("1") }),
+  );
+  expect(receipt.status).toBe("success");
+  expect(await anvil.testClient.getChainId()).toBe(1337);
+});
+
+it("manipulates the chain fluently", async () => {
+  const whale = "0x1111111111111111111111111111111111111111";
+  await anvil.cheats
+    .setBalanceEther(whale, 1_000)
+    .impersonate(whale)
+    .increaseTime({ days: 7 })
+    .mine();
+  expect(await anvil.getBalance(whale)).toBe(parseEther("1000"));
+});
+```
+<!-- /snippet -->
 
 ## Workflows
 
@@ -136,7 +198,7 @@ let token: Address;
 let vault: Address;
 
 const anvil = useAnvil(
-  anvilContainer(
+  new AnvilContainer(
     new AnvilOptions().account
       .withMnemonic(MNEMONIC)
       .withAccounts(3)
@@ -284,7 +346,7 @@ that use it opt out of isolation:
 ```ts
 // reset() discards every snapshot, so this suite opts out of isolation.
 const node = useAnvil(
-  anvilContainer().withTestClient((client) => client.withAccount(0)),
+  new AnvilContainer().withTestClient((client) => client.withAccount(0)),
   { isolation: "none" },
 );
 let deployed: Address;
@@ -499,9 +561,35 @@ expect(balance).toBe(parseEther("50"));
 ```
 <!-- /snippet -->
 
+For a plain Ether transfer between dev accounts there is a one-liner that
+waits for the receipt:
+
+<!-- snippet: test/e2e/multi-actor-flows.e2e.test.ts#send-eth -->
+```ts
+const receipt = await anvil.sendEthTransaction(alice, bob, "1.5"); // Ether
+expect(receipt.status).toBe("success");
+expect(await anvil.getBalance(bob)).toBe(before + parseEther("1.5"));
+```
+<!-- /snippet -->
+
 ### 3. Time travel
 
 [test/e2e/time-travel.e2e.test.ts](test/e2e/time-travel.e2e.test.ts)
+
+The tests below use a vault deposit of alice's, locked for 30 days, and this
+helper:
+
+<!-- snippet: test/e2e/time-travel.e2e.test.ts#withdraw-helper -->
+```ts
+/** Simulates alice's withdrawal from the vault (throws while locked). */
+const withdraw = () =>
+  anvil.testClientFor(alice).simulateContract({
+    address: vault,
+    abi: timeLockVault.abi,
+    functionName: "withdraw",
+  });
+```
+<!-- /snippet -->
 
 Jump ahead with a duration, then mine a block so the new time applies:
 
@@ -600,7 +688,7 @@ runtime:
 ```ts
 const GENESIS = new Date("2030-06-01T00:00:00Z");
 const node = useAnvil(
-  anvilContainer(
+  new AnvilContainer(
     new AnvilOptions().mining
       .withBlockTime(1) // a block every second, like a real chain
       .state.withTimestamp(GENESIS),
@@ -638,7 +726,7 @@ Mixed mining combines both: transactions on arrival, blocks on the clock:
 ```ts
 // Transactions are mined at once (automine) AND a block comes every second.
 const node = useAnvil(
-  anvilContainer(
+  new AnvilContainer(
     new AnvilOptions().mining.withBlockTime(1).withMixedMining(),
   ),
   { isolation: "none" },
@@ -946,7 +1034,7 @@ Or impersonate every sender, configured at startup and switchable at runtime:
 ```ts
 // Every sender is impersonated: no per-address impersonate() calls.
 const node = useAnvil(
-  anvilContainer(new AnvilOptions().account.autoImpersonate()),
+  new AnvilContainer(new AnvilOptions().account.autoImpersonate()),
 );
 
 it("sends from any address", async () => {
@@ -975,6 +1063,38 @@ it("can be switched off and on at runtime", async () => {
 ```
 <!-- /snippet -->
 
+Allowances can be written directly, without an `approve()` transaction:
+
+<!-- snippet: test/e2e/whales-and-impersonation.e2e.test.ts#allowance -->
+```ts
+await anvil.cheats
+  .setBalanceEther(WHALE, 1)
+  .dealErc20(token, WHALE, parseEther("10"))
+  // Allowances can be written directly too — no approve() transaction.
+  .setErc20Allowance(token, WHALE, vault, parseEther("10"));
+```
+<!-- /snippet -->
+
+The container helpers wrap viem's impersonation actions, which you can also
+call directly:
+
+<!-- snippet: test/e2e/whales-and-impersonation.e2e.test.ts#viem-impersonation -->
+```ts
+await anvil.testClient.impersonateAccount({ address: WHALE });
+try {
+  await anvil.confirm(
+    anvil.testClient.sendTransaction({
+      account: WHALE,
+      to: alice,
+      value: 1n,
+    }),
+  );
+} finally {
+  await anvil.testClient.stopImpersonatingAccount({ address: WHALE });
+}
+```
+<!-- /snippet -->
+
 ### 6. Mempool and block building
 
 [test/e2e/mempool-and-blocks.e2e.test.ts](test/e2e/mempool-and-blocks.e2e.test.ts)
@@ -986,7 +1106,7 @@ Start a node that only mines on demand:
 // Blocks are only mined on demand (anvil --no-mining). confirm() and the
 // deploy fixtures mine a block when a transaction is still pending.
 const anvil = useAnvil(
-  anvilContainer(new AnvilOptions().mining.withNoMining()).withTestClient(
+  new AnvilContainer(new AnvilOptions().mining.withNoMining()).withTestClient(
     (client) => client.withAccount(0),
   ),
   {
@@ -1053,7 +1173,7 @@ expect(block.transactions).toEqual([generous, cheap]); // sent later, mined firs
 <!-- snippet: test/e2e/mempool-and-blocks.e2e.test.ts#fifo -->
 ```ts
 const node = useAnvil(
-  anvilContainer(
+  new AnvilContainer(
     new AnvilOptions().mining.withNoMining().state.withOrder(Order.Fifo),
   ),
 );
@@ -1197,7 +1317,7 @@ Legacy (pre-London) gas pricing:
 <!-- snippet: test/e2e/mempool-and-blocks.e2e.test.ts#legacy-gas -->
 ```ts
 const node = useAnvil(
-  anvilContainer(new AnvilOptions().evm.withHardfork(Hardfork.Berlin)),
+  new AnvilContainer(new AnvilOptions().evm.withHardfork(Hardfork.Berlin)),
 );
 
 it("sets the gas price the node suggests", async () => {
@@ -1234,7 +1354,7 @@ until the watcher reports it:
 <!-- snippet: test/e2e/events-and-subscriptions.e2e.test.ts#websocket -->
 ```ts
 const anvil = useAnvil(
-  anvilContainer().withTestClient((client) =>
+  new AnvilContainer().withTestClient((client) =>
     client.withAccount(0).withTransport("webSocket"),
   ),
   { setup: async (node) => void (token = await deployToken(node.testClient)) },
@@ -1722,7 +1842,7 @@ Build an expensive fixture once and save it:
 
 <!-- snippet: test/e2e/state-fixtures.e2e.test.ts#build-fixture -->
 ```ts
-const builder = await anvilContainer()
+const builder = await new AnvilContainer()
   .withTestClient((client) => client.withAccount(0))
   .start();
 try {
@@ -1746,7 +1866,7 @@ a running node:
 
 <!-- snippet: test/e2e/state-fixtures.e2e.test.ts#boot-from-fixture -->
 ```ts
-const anvil = await anvilContainer(
+const anvil = await new AnvilContainer(
   new AnvilOptions().state.withLoadState(fixtureFile),
 ).start();
 try {
@@ -1811,7 +1931,7 @@ fs.writeFileSync(
   }),
 );
 
-const anvil = await anvilContainer(
+const anvil = await new AnvilContainer(
   new AnvilOptions().state.withInit(genesisFile),
 ).start();
 try {
@@ -1846,7 +1966,7 @@ networks. Both nodes run in Docker on a shared network (`startNetwork()` in
 ```ts
 mainnet = await network
   .attach(
-    anvilContainer(new AnvilOptions().evm.withChainId(1)),
+    new AnvilContainer(new AnvilOptions().evm.withChainId(1)),
     "mainnet",
     "mainnet-backup", // a second endpoint, see setRpcUrl below
   )
@@ -1862,25 +1982,21 @@ forkUrl = network.urlOf(mainnet, "mainnet");
 
 <!-- snippet: test/e2e/forking.e2e.test.ts#fork -->
 ```ts
-return network
-  .attach(
-    anvilContainer(
-      new AnvilOptions().fork
-        .withForkUrl(forkUrl, forkBlock) // pin the block: reproducible tests
-        .withRetries(2) // upstream hiccups…
-        .withForkRetryBackoff(500) // …are retried after 500 ms
-        .withTimeout(10_000) // per upstream request
-        .noStorageCaching() // don't persist fetched state to anvil's disk cache
-        .noRateLimit() // a local upstream needs no compute-unit throttling
-        // anvil derives a fork's hardfork from chain id + block number; for
-        // "chain 1 at block 3" that is Frontier, so pin it explicitly.
-        .evm.withHardfork(Hardfork.Cancun),
-    ),
-  )
-  .withTestClient((client) =>
-    // Act as the holder: impersonated at startup, typed default account.
-    client.withAccount(HOLDER, { impersonate: true }),
-  );
+const options = new AnvilOptions().fork
+  .withForkUrl(forkUrl, forkBlock) // pin the block: reproducible tests
+  .withRetries(2) // upstream hiccups…
+  .withForkRetryBackoff(500) // …are retried after 500 ms
+  .withTimeout(10_000) // per upstream request
+  .noStorageCaching() // don't persist fetched state to anvil's disk cache
+  .noRateLimit() // a local upstream needs no compute-unit throttling
+  // anvil derives a fork's hardfork from chain id + block number; for
+  // "chain 1 at block 3" that is Frontier, so pin it explicitly.
+  .evm.withHardfork(Hardfork.Cancun);
+
+const container = new AnvilContainer(options).withTestClient((client) =>
+  // Act as the holder: impersonated at startup, typed default account.
+  client.withAccount(HOLDER, { impersonate: true }),
+);
 ```
 <!-- /snippet -->
 
@@ -1957,6 +2073,86 @@ expect(await balanceOf(fork.testClient, token, HOLDER)).toBe(
 ```
 <!-- /snippet -->
 
+Other ways to choose the fork point — right before a transaction, relative
+to the upstream's latest block — and options for real providers (offline
+chain id, credentials, rate limits):
+
+<!-- snippet: test/e2e/forking.e2e.test.ts#fork-at-transaction -->
+```ts
+const fork = await startFork(
+  new AnvilOptions().fork
+    .withForkUrl(forkUrl)
+    .withForkTransactionHash(payment.transactionHash)
+    .evm.withHardfork(Hardfork.Cancun),
+);
+try {
+  // Forked at the block before the payment: it has not happened yet.
+  expect(await fork.testClient.getBlockNumber()).toBe(
+    payment.blockNumber - 1n,
+  );
+  expect(await fork.getBalance(RECIPIENT)).toBe(0n);
+} finally {
+  await fork.stop();
+}
+```
+<!-- /snippet -->
+
+<!-- snippet: test/e2e/forking.e2e.test.ts#fork-relative-block -->
+```ts
+const latest = await mainnet.testClient.getBlockNumber();
+const fork = await startFork(
+  new AnvilOptions().fork
+    .withForkUrl(forkUrl)
+    .withForkBlockNumber(-1) // negative: blocks before the latest
+    .evm.withHardfork(Hardfork.Cancun),
+);
+try {
+  const { forkedNetwork } = await fork.metadata();
+  expect(forkedNetwork?.forkBlockNumber).toBe(Number(latest - 1n));
+} finally {
+  await fork.stop();
+}
+```
+<!-- /snippet -->
+
+<!-- snippet: test/e2e/forking.e2e.test.ts#fork-offline-chain-id -->
+```ts
+const fork = await startFork(
+  new AnvilOptions().fork
+    .withForkUrl(forkUrl, forkBlock) // needs a block number or tx hash
+    .withForkChainId(1) // skips eth_chainId on startup
+    .evm.withHardfork(Hardfork.Cancun),
+);
+try {
+  expect(fork.chainId).toBe(1);
+  expect(await balanceOf(fork.testClient, token, HOLDER)).toBe(
+    parseEther("1000000"),
+  );
+} finally {
+  await fork.stop();
+}
+```
+<!-- /snippet -->
+
+<!-- snippet: test/e2e/forking.e2e.test.ts#fork-provider -->
+```ts
+const fork = await startFork(
+  new AnvilOptions().fork
+    .withForkUrl(forkUrl, forkBlock)
+    .withForkHeader("Authorization: Bearer <api-key>") // every upstream request
+    .withComputeUnitsPerSecond(100) // stay under the provider's rate limit
+    .evm.withHardfork(Hardfork.Cancun),
+);
+try {
+  expect(await balanceOf(fork.testClient, token, HOLDER)).toBe(
+    parseEther("1000000"),
+  );
+} finally {
+  await fork.stop();
+}
+```
+<!-- /snippet -->
+
 ### 12. Signing, key material and EIP-7702
 
 [test/e2e/signing.e2e.test.ts](test/e2e/signing.e2e.test.ts)
@@ -1967,7 +2163,7 @@ A local account signs in the test process, like a wallet:
 ```ts
 // Dev account 1 signs locally (its key is derived from anvil's mnemonic).
 const anvil = useAnvil(
-  anvilContainer().withTestClient((client) => client.withLocalAccount(1)),
+  new AnvilContainer().withTestClient((client) => client.withLocalAccount(1)),
   {
     // A contract to delegate EOAs to (EIP-7702), deployed once.
     setup: async (node) =>
@@ -2138,7 +2334,7 @@ const MNEMONIC =
   "legal winner thank year wave sausage worth useful legal winner thank yellow";
 // Dev accounts from a second BIP-44 account branch: m/44'/60'/1'/0/i
 const derived = useAnvil(
-  anvilContainer(
+  new AnvilContainer(
     new AnvilOptions().account
       .withMnemonic(MNEMONIC)
       .withDerivationPath("m/44'/60'/1'/0/")
@@ -2147,17 +2343,17 @@ const derived = useAnvil(
 );
 // A fresh random mnemonic per run; keys are read from anvil's startup banner.
 const random = useAnvil(
-  anvilContainer(
+  new AnvilContainer(
     new AnvilOptions().account.withRandomMnemonic(),
   ).withTestClient((client) => client.withLocalAccount(0)),
 );
 
 // Reproducible "random" accounts: the same seed gives the same mnemonic.
 const seeded = useAnvil(
-  anvilContainer(new AnvilOptions().account.withMnemonicSeedUnsafe(42)),
+  new AnvilContainer(new AnvilOptions().account.withMnemonicSeedUnsafe(42)),
 );
 const seededAgain = useAnvil(
-  anvilContainer(new AnvilOptions().account.withMnemonicSeedUnsafe(42)),
+  new AnvilContainer(new AnvilOptions().account.withMnemonicSeedUnsafe(42)),
 );
 
 it("derives accounts along the configured path", async () => {
@@ -2199,7 +2395,7 @@ follows the node's chain id and takes extra chain metadata:
 <!-- snippet: test/e2e/chain-config-and-reorgs.e2e.test.ts#chain-config -->
 ```ts
 const anvil = useAnvil(
-  anvilContainer(
+  new AnvilContainer(
     new AnvilOptions().evm
       .withChainId(8453)
       .withHardfork(Hardfork.Cancun)
@@ -2224,7 +2420,7 @@ const anvil = useAnvil(
 ```ts
 const info = await anvil.testClient.getNodeInfo();
 expect(info.hardFork.toLowerCase()).toBe("cancun");
-expect(hexToNumber(info.environment.chainId)).toBe(8453);
+expect(info.environment.chainId).toBe(8453);
 expect(BigInt(info.environment.gasLimit)).toBe(60_000_000n);
 
 const metadata = await anvil.testClient.getMetadata();
@@ -2311,6 +2507,22 @@ expect(await anvil.getBalance(bob)).toBe(before + parseEther("5"));
 ```
 <!-- /snippet -->
 
+Remove blocks from the tip with `rollback()`:
+
+<!-- snippet: test/e2e/chain-config-and-reorgs.e2e.test.ts#rollback -->
+```ts
+const height = await anvil.testClient.getBlockNumber();
+await anvil.mine(5);
+
+await anvil.cheats.rollback(5); // remove the last 5 blocks (default 1)
+expect(await anvil.testClient.getBlockNumber()).toBe(height);
+
+await anvil.mine();
+await anvil.testClient.rollback(); // the same as a test client action
+expect(await anvil.testClient.getBlockNumber()).toBe(height);
+```
+<!-- /snippet -->
+
 ### 14. Node configuration
 
 [test/e2e/node-configuration.e2e.test.ts](test/e2e/node-configuration.e2e.test.ts)
@@ -2320,9 +2532,11 @@ CORS, for tests of browser dApps:
 <!-- snippet: test/e2e/node-configuration.e2e.test.ts#cors -->
 ```ts
 const open = useAnvil(
-  anvilContainer(new AnvilOptions().server.withAllowOrigin(ORIGIN)),
+  new AnvilContainer(new AnvilOptions().server.withAllowOrigin(ORIGIN)),
 );
-const closed = useAnvil(anvilContainer(new AnvilOptions().server.noCors()));
+const closed = useAnvil(
+  new AnvilContainer(new AnvilOptions().server.noCors()),
+);
 
 it("allows the configured origin", async () => {
   const response = await preflight(open.rpcUrl);
@@ -2342,10 +2556,10 @@ The EIP-170 contract size limit, enforced by default and configurable:
 <!-- snippet: test/e2e/node-configuration.e2e.test.ts#code-size -->
 ```ts
 const strict = useAnvil(
-  anvilContainer().withTestClient((client) => client.withAccount(0)),
+  new AnvilContainer().withTestClient((client) => client.withAccount(0)),
 );
 const raised = useAnvil(
-  anvilContainer(
+  new AnvilContainer(
     new AnvilOptions().evm.withCodeSizeLimit(32_768),
   ).withTestClient((client) => client.withAccount(0)),
 );
@@ -2380,10 +2594,12 @@ Deterministic deployments through the pre-deployed CREATE2 deployer:
 <!-- snippet: test/e2e/node-configuration.e2e.test.ts#create2 -->
 ```ts
 const node = useAnvil(
-  anvilContainer().withTestClient((client) => client.withAccount(0)),
+  new AnvilContainer().withTestClient((client) => client.withAccount(0)),
 );
 const bare = useAnvil(
-  anvilContainer(new AnvilOptions().evm.disableDefaultCreate2Deployer()),
+  new AnvilContainer(
+    new AnvilOptions().evm.disableDefaultCreate2Deployer(),
+  ),
 );
 
 it("deploys to a precomputed address through the CREATE2 deployer", async () => {
@@ -2418,9 +2634,9 @@ Block gas limit, port and logging, history and genesis height:
 
 <!-- snippet: test/e2e/node-configuration.e2e.test.ts#block-gas-limit -->
 ```ts
-const limited = useAnvil(anvilContainer());
+const limited = useAnvil(new AnvilContainer());
 const unlimited = useAnvil(
-  anvilContainer(new AnvilOptions().evm.disableBlockGasLimit()),
+  new AnvilContainer(new AnvilOptions().evm.disableBlockGasLimit()),
 );
 
 it("rejects transactions above the block gas limit by default", async () => {
@@ -2452,7 +2668,7 @@ it("accepts them without a block gas limit (gas-heavy tests, fuzzing)", async ()
 ```ts
 // anvil listens on 9545 inside the container; the host port is mapped.
 const custom = useAnvil(
-  anvilContainer(new AnvilOptions().server.withPort(9545).logs.quiet()),
+  new AnvilContainer(new AnvilOptions().server.withPort(9545).logs.quiet()),
 );
 
 it("maps the configured port to a free host port", async () => {
@@ -2473,12 +2689,12 @@ it("starts quietly (no banner) and still knows the dev keys", async () => {
 ```ts
 // Long-running suites: keep only the latest state in memory.
 const pruned = useAnvil(
-  anvilContainer(new AnvilOptions().state.withPruneHistory()),
+  new AnvilContainer(new AnvilOptions().state.withPruneHistory()),
   { isolation: "none" },
 );
 // Start at a mainnet-like height.
 const tall = useAnvil(
-  anvilContainer(new AnvilOptions().mining.withBlockNumber(20_000_000)),
+  new AnvilContainer(new AnvilOptions().mining.withBlockNumber(20_000_000)),
 );
 
 it("answers historical queries only without pruning", async () => {
@@ -2496,6 +2712,161 @@ it("starts at the configured block number", async () => {
 ```
 <!-- /snippet -->
 
+Large requests (e.g. big state loads or calldata) need the request size
+limit lifted:
+
+<!-- snippet: test/e2e/node-configuration.e2e.test.ts#request-size -->
+```ts
+const strict = useAnvil(new AnvilContainer());
+const unlimited = useAnvil(
+  new AnvilContainer(new AnvilOptions().server.noRequestSizeLimit()),
+);
+// 2 MB of calldata: a request body of about 4 MB once hex encoded.
+const bigCall = {
+  to: "0x0000000000000000000000000000000000000001",
+  data: `0x${"00".repeat(2_000_000)}`,
+  gas: 30_000_000n,
+} as const satisfies { to: Address; data: Hex; gas: bigint };
+
+it("rejects very large requests by default", async () => {
+  await expect(strict.testClient.call(bigCall)).rejects.toThrow(
+    /Invalid request/,
+  );
+});
+
+it("accepts them with noRequestSizeLimit()", async () => {
+  await expect(unlimited.testClient.call(bigCall)).resolves.toBeDefined();
+});
+```
+<!-- /snippet -->
+
+Or lift the contract size limit entirely:
+
+<!-- snippet: test/e2e/node-configuration.e2e.test.ts#no-code-size-limit -->
+```ts
+const unlimited = useAnvil(
+  new AnvilContainer(
+    new AnvilOptions().evm.disableCodeSizeLimit(),
+  ).withTestClient((client) => client.withAccount(0)),
+);
+
+it("deploys contracts of any size without a limit", async () => {
+  const receipt = await unlimited.confirm(
+    unlimited.testClient.deployContract({
+      abi: oversizedContract.abi,
+      bytecode: oversizedContract.bytecode,
+    }),
+  );
+  expect(receipt.status).toBe("success");
+});
+```
+<!-- /snippet -->
+
+Accept transactions from senders that cannot pay yet:
+
+<!-- snippet: test/e2e/node-configuration.e2e.test.ts#pool-balance-checks -->
+```ts
+// Accept transactions whose sender cannot pay (yet): fund it before mining.
+const node = useAnvil(
+  new AnvilContainer(
+    new AnvilOptions().mining.withNoMining().evm.disablePoolBalanceChecks(),
+  ),
+);
+
+it("queues a transaction from an unfunded sender", async () => {
+  const user = privateKeyToAccount(generatePrivateKey()).address;
+  const [alice] = await node.addresses();
+  const hash = await node.testClient.sendUnsignedTransaction({
+    from: user,
+    to: alice,
+    value: parseEther("1"),
+  });
+  expect((await node.testClient.getTxpoolStatus()).pending).toBe(1);
+
+  await node.cheats.setBalanceEther(user, 2).mine();
+  const receipt = await node.testClient.getTransactionReceipt({ hash });
+  expect(receipt.status).toBe("success");
+});
+```
+<!-- /snippet -->
+
+Gas pricing and finality:
+
+<!-- snippet: test/e2e/node-configuration.e2e.test.ts#gas-price -->
+```ts
+// Pre-London chains have no base fee: pin the gas price the node suggests.
+const legacy = useAnvil(
+  new AnvilContainer(
+    new AnvilOptions().evm
+      .withHardfork(Hardfork.Berlin)
+      .withGasPrice(parseGwei("5")),
+  ),
+);
+
+it("suggests the configured gas price", async () => {
+  expect(await legacy.testClient.getGasPrice()).toBe(parseGwei("5"));
+});
+```
+<!-- /snippet -->
+
+<!-- snippet: test/e2e/node-configuration.e2e.test.ts#no-priority-fee -->
+```ts
+// By default anvil suggests base fee + 1 gwei; drop the minimum tip.
+const tipless = useAnvil(
+  new AnvilContainer(new AnvilOptions().evm.disableMinPriorityFee()),
+);
+
+it("suggests the base fee without a tip", async () => {
+  const { baseFeePerGas } = await tipless.testClient.getBlock();
+  expect(await tipless.testClient.getGasPrice()).toBe(baseFeePerGas);
+});
+```
+<!-- /snippet -->
+
+<!-- snippet: test/e2e/node-configuration.e2e.test.ts#slots-in-an-epoch -->
+```ts
+// `safe` trails the head by one epoch, `finalized` by two (default: 32 slots).
+const node = useAnvil(
+  new AnvilContainer(new AnvilOptions().mining.withSlotsInAnEpoch(1)),
+);
+
+it("derives the safe and finalized blocks from the epoch length", async () => {
+  await node.mine(5);
+  const safe = await node.testClient.getBlock({ blockTag: "safe" });
+  const finalized = await node.testClient.getBlock({
+    blockTag: "finalized",
+  });
+  expect([safe.number, finalized.number]).toEqual([4n, 3n]);
+});
+```
+<!-- /snippet -->
+
+Bound memory use in long-running nodes by forgetting old transactions:
+
+<!-- snippet: test/e2e/node-configuration.e2e.test.ts#transaction-keeper -->
+```ts
+// Keep transactions of the latest block only: older ones are forgotten.
+const forgetful = useAnvil(
+  new AnvilContainer(
+    new AnvilOptions().state.withTransactionBlockKeeper(1),
+  ).withTestClient((client) => client.withAccount(0)),
+);
+
+it("forgets transactions of older blocks", async () => {
+  const [, bob] = await forgetful.addresses();
+  const { transactionHash: hash } = await forgetful.confirm(
+    forgetful.testClient.sendTransaction({ to: bob, value: 1n }),
+  );
+  expect(await forgetful.testClient.getTransaction({ hash })).toBeDefined();
+
+  await forgetful.mine(2);
+  await expect(
+    forgetful.testClient.getTransaction({ hash }),
+  ).rejects.toThrow(/could not be found/);
+});
+```
+<!-- /snippet -->
+
 ### 15. Debugging and tracing
 
 [test/e2e/debugging-and-tracing.e2e.test.ts](test/e2e/debugging-and-tracing.e2e.test.ts)
@@ -2505,7 +2876,7 @@ A node that records everything:
 <!-- snippet: test/e2e/debugging-and-tracing.e2e.test.ts#tracing-node -->
 ```ts
 const anvil = useAnvil(
-  anvilContainer(
+  new AnvilContainer(
     new AnvilOptions().evm
       .withPrintTraces() // call traces in anvil's log output
       .withStepsTracing() // opcode-level debug_traceTransaction
@@ -2673,6 +3044,442 @@ expect(base.build().pollingInterval).toBe(50); // presets stay untouched
 ```
 <!-- /snippet -->
 
+…the client's transport settings are validated the same way…
+
+<!-- snippet: test/unit/configuration.test.ts#client-options -->
+```ts
+const client = new TestClientOptions()
+  .withTransport("webSocket") // eth_subscribe-based watchers
+  .withTimeout(5_000) // per request (default 10 000 ms)
+  .withRetries(0, 50) // count, base delay in ms (default 3, 150)
+  .withCacheTime(1_000) // reuse e.g. the block number for 1 s (default 0)
+  .withPollingInterval(10) // watchers and receipt waits (default 25 ms)
+  .withLocalAccount(0); // dev account 0, signed locally
+
+expect(client.build()).toMatchObject({
+  transport: "webSocket",
+  timeout: 5_000,
+  retryCount: 0,
+  retryDelay: 50,
+  account: { kind: "index", index: 0, signing: "local" },
+});
+// JSON-RPC batching needs HTTP:
+expect(() => client.clone().withBatch().build()).toThrow(
+  AnvilTestClientConfigurationError,
+);
+```
+<!-- /snippet -->
+
+…and a container exposes its options and prepared command without Docker:
+
+<!-- snippet: test/unit/configuration.test.ts#container-getters -->
+```ts
+const options = new AnvilOptions().mining.withBlockTime(2);
+const container = new AnvilContainer(options).withTestClient((client) =>
+  client.withAccount(0),
+);
+
+expect(container.anvilOptions).toBe(options);
+expect(container.testClientOptions.build().account?.kind).toBe("index");
+expect(container.prepare().command.join(" ")).toBe(
+  "anvil --host 0.0.0.0 --block-time 2",
+);
+```
+<!-- /snippet -->
+
+### 17. Lifecycle control
+
+[test/e2e/lifecycle.e2e.test.ts](test/e2e/lifecycle.e2e.test.ts)
+
+Start and stop a node yourself (e.g. one node shared by a `describe`):
+
+<!-- snippet: test/e2e/lifecycle.e2e.test.ts#manual-lifecycle -->
+```ts
+let anvil: StartedAnvilContainer;
+
+beforeAll(async () => {
+  anvil = await new AnvilContainer(new AnvilOptions().logs.quiet())
+    .withStartupTimeout(120_000) // first run: image pull
+    .start();
+}, 120_000);
+
+afterAll(async () => {
+  await anvil?.stop();
+});
+
+it("uses the started node", async () => {
+  expect(await anvil.testClient.getBlockNumber()).toBe(0n);
+});
+```
+<!-- /snippet -->
+
+Pass test hooks explicitly (runners without Jest-style globals), or any
+async start logic:
+
+<!-- snippet: test/e2e/lifecycle.e2e.test.ts#explicit-hooks -->
+```ts
+// Pass the hooks yourself when your runner has no Jest-style globals.
+const anvil = useAnvil(new AnvilContainer(), {
+  hooks: { beforeAll, afterAll, afterEach },
+  timeout: 120_000, // start/stop hook timeout
+});
+```
+<!-- /snippet -->
+
+<!-- snippet: test/e2e/lifecycle.e2e.test.ts#start-function -->
+```ts
+// Any async start logic: the handle works the same way.
+const funded = useAnvil({
+  start: async () => {
+    const node = await new AnvilContainer().start();
+    const [first] = await node.addresses();
+    await node.setBalanceEther(first, 1);
+    return node;
+  },
+});
+```
+<!-- /snippet -->
+
+After `stop()`, clients reject with `CONTAINER_STOPPED` instead of hanging:
+
+<!-- snippet: test/e2e/lifecycle.e2e.test.ts#after-stop -->
+```ts
+const anvil = await new AnvilContainer().start();
+const client = anvil.testClient;
+await anvil.stop();
+
+expect(anvil.isStopped).toBe(true);
+const error = await client.getBlockNumber().catch((e: unknown) => e);
+expect(error).toBeInstanceOf(AnvilTestClientError);
+expect((error as AnvilTestClientError).code).toBe("CONTAINER_STOPPED");
+```
+<!-- /snippet -->
+
+### 18. Scripting with cheats
+
+[test/e2e/cheats.e2e.test.ts](test/e2e/cheats.e2e.test.ts)
+
+A cheat chain is a plan until it runs:
+
+<!-- snippet: test/e2e/cheats.e2e.test.ts#cheat-plan -->
+```ts
+const chain = anvil.cheats.setBalanceEther(ALICE, 1.5).mine(2);
+expect(chain.plan).toEqual([`setBalanceEther(${ALICE}, 1.5)`, "mine(2)"]);
+
+await chain.run(); // same as `await chain`; a chain runs once
+expect(await anvil.getBalance(ALICE)).toBe(parseEther("1.5"));
+```
+<!-- /snippet -->
+
+A failing step names itself and what was already applied:
+
+<!-- snippet: test/e2e/cheats.e2e.test.ts#cheat-errors -->
+```ts
+const error = await anvil.cheats
+  .mine()
+  .setMinGasPrice(parseGwei("1")) // rejected while EIP-1559 is active
+  .mine()
+  .catch((e: unknown) => e);
+
+expect(error).toBeInstanceOf(AnvilTestClientError);
+expect((error as AnvilTestClientError).code).toBe("CHEAT_FAILED");
+expect((error as Error).message).toMatch(
+  /step 2\/3 setMinGasPrice\(1000000000n\) failed: .*\(steps 1–1 were applied\)/,
+);
+```
+<!-- /snippet -->
+
+<!-- snippet: test/e2e/cheats.e2e.test.ts#cheat-once -->
+```ts
+const chain = anvil.cheats.mine();
+await chain.finally(() => undefined); // then / catch / finally run it too
+expect(() => chain.mine()).toThrow(
+  /cheats chain that has already run; start a new chain/, // CHEATS_ALREADY_RUN
+);
+```
+<!-- /snippet -->
+
+### 19. Composing and inspecting options
+
+[test/unit/options.test.ts](test/unit/options.test.ts)
+
+Presets, copies and swapping conflicting flags:
+
+<!-- snippet: test/unit/options.test.ts#compose -->
+```ts
+const richAccounts = (options: AnvilOptions) =>
+  options.account.withAccounts(3).withBalance(1_000_000);
+const fastBlocks = (options: AnvilOptions) =>
+  options.mining.withBlockTime(1);
+
+const base = new AnvilOptions().apply(richAccounts); // run presets
+const ci = base.clone().apply(fastBlocks); // independent copy
+const onDemand = ci.clone().unset("--block-time").mining.withNoMining(); // swap a conflicting flag
+
+expect(base.toCommand()).toBe(
+  "anvil --host 0.0.0.0 --accounts 3 --balance 1000000",
+);
+expect(ci.has("--block-time")).toBe(true);
+expect(onDemand.root().toArgs()).toContain("--no-mining");
+```
+<!-- /snippet -->
+
+<!-- snippet: test/unit/options.test.ts#group-reset -->
+```ts
+const options = new AnvilOptions().mining
+  .withBlockTime(2)
+  .withMixedMining()
+  .evm.withChainId(10);
+
+options.mining.reset(); // removes every mining flag, nothing else
+expect(options.toCommand()).toBe("anvil --host 0.0.0.0 --chain-id 10");
+
+// withAutoMining() removes just the mining mode flags.
+const auto = new AnvilOptions().mining.withNoMining().withAutoMining();
+expect(auto.has("--no-mining")).toBe(false);
+```
+<!-- /snippet -->
+
+Flags newer than the library:
+
+<!-- snippet: test/unit/options.test.ts#extra-args -->
+```ts
+const options = new AnvilOptions().withExtraArgs("--some-new-flag", "1");
+expect(options.toCommand()).toBe("anvil --host 0.0.0.0 --some-new-flag 1");
+
+// Known flags must use the fluent API, so validation cannot be bypassed.
+expect(() => new AnvilOptions().withExtraArgs("--accounts", "1")).toThrow(
+  /known anvil flag/,
+);
+```
+<!-- /snippet -->
+
+Inspecting and validating:
+
+<!-- snippet: test/unit/options.test.ts#inspect -->
+```ts
+const options = new AnvilOptions().account
+  .withAccounts(2)
+  .evm.withChainId(8453);
+
+expect(options.has("--chain-id")).toBe(true);
+expect(options.get("--accounts")).toBe("2");
+expect(options.flags()).toEqual({
+  "--accounts": "2",
+  "--chain-id": "8453",
+}); // --host is managed by the container: rendered, not configurable
+expect(options.toArgs()).toEqual([
+  "--host",
+  "0.0.0.0",
+  "--accounts",
+  "2",
+  "--chain-id",
+  "8453",
+]);
+expect(options.entryPoint[0]).toBe("anvil");
+expect(options.toJSON().command).toEqual(options.entryPoint);
+```
+<!-- /snippet -->
+
+<!-- snippet: test/unit/options.test.ts#validate -->
+```ts
+// Setters reject conflicts at once; dependencies need the whole picture.
+const incomplete = new AnvilOptions().fork.withRetries(3); // no fork URL yet
+expect(() => incomplete.validate()).toThrow(AnvilConfigurationError);
+
+const [problem] = incomplete.problems(); // the same, without throwing
+expect(problem.flag).toBe("--retries");
+expect(problem.relatedFlags).toEqual(["--fork-url"]);
+
+const configuration = incomplete.fork
+  .withForkUrl("https://rpc.example", 19_000_000)
+  .build(); // validate() + freeze
+expect(configuration.forking).toBe(true);
+expect(configuration.command).toContain("--fork-block-number");
+expect(Object.isFrozen(configuration)).toBe(true);
+```
+<!-- /snippet -->
+
+<!-- snippet: test/unit/options.test.ts#registry -->
+```ts
+const spec = getFlagSpec("--fork-url");
+expect(spec.aliases).toEqual(["-f", "--rpc-url"]);
+expect(spec.methods).toEqual(["fork.withForkUrl()"]);
+
+expect(isAnvilFlag("--state-interval")).toBe(true);
+expect(getFlagSpec("--state-interval").requiresAnyOf).toEqual([
+  "--dump-state",
+  "--state",
+]);
+expect(groupFlags("mining")).toContain("--no-mining");
+expect(ANVIL_FLAGS.size).toBe(ANVIL_FLAG_LIST.length);
+```
+<!-- /snippet -->
+
+State files and paths inside the image:
+
+<!-- snippet: test/unit/options.test.ts#state-files -->
+```ts
+const configuration = new AnvilOptions().state
+  .withDumpState("./out/state.json") // copied to the host by stop()
+  .withStateInterval(30) // also dump every 30 s while running
+  .withPreserveHistoricalStates() // include historical states in dumps
+  .build();
+
+expect(configuration.fileExports).toEqual([
+  {
+    flag: "--dump-state",
+    hostPath: path.resolve("out/state.json"),
+    containerPath: "/tmp/anvil-dump-state.json",
+    when: "stop",
+  },
+]);
+
+// --state loads the file when it exists and dumps to it on stop.
+const persistent = new AnvilOptions().state
+  .withState("./.anvil/state.json")
+  .build();
+expect(persistent.fileImports[0].required).toBe(false);
+expect(persistent.fileExports[0].when).toBe("stop");
+```
+<!-- /snippet -->
+
+<!-- snippet: test/unit/options.test.ts#config-out -->
+```ts
+// anvil's resolved config (incl. dev keys), copied out right after start.
+const configuration = new AnvilOptions().state
+  .withConfigOut("./out/anvil-config.json")
+  .build();
+expect(configuration.fileExports[0]).toMatchObject({
+  flag: "--config-out",
+  when: "start",
+});
+```
+<!-- /snippet -->
+
+<!-- snippet: test/unit/options.test.ts#container-path -->
+```ts
+const baked = containerPath("/data/fixture.json"); // not copied
+const configuration = new AnvilOptions().state.withLoadState(baked).build();
+
+expect(isContainerPath(baked)).toBe(true);
+expect(configuration.args).toContain("/data/fixture.json");
+expect(configuration.fileImports).toEqual([]);
+```
+<!-- /snippet -->
+
+<!-- snippet: test/unit/options.test.ts#history-limits -->
+```ts
+// Long-running nodes: keep at most 5 states on disk…
+const bounded = new AnvilOptions().state.withMaxPersistedStates(5);
+expect(bounded.toCommand()).toContain("--max-persisted-states 5");
+
+// …or prune history instead: the two are mutually exclusive.
+expect(() => bounded.state.withPruneHistory()).toThrow(
+  AnvilConfigurationError,
+);
+```
+<!-- /snippet -->
+
+Options that change how anvil runs:
+
+<!-- snippet: test/unit/options.test.ts#network-modes -->
+```ts
+const opStack = new AnvilOptions().network
+  .withOptimism()
+  .evm.withHardfork(OpHardfork.Isthmus);
+expect(opStack.toCommand()).toBe(
+  "anvil --host 0.0.0.0 --hardfork isthmus --optimism",
+);
+
+// Ethereum hardforks don't apply to OP Stack chains…
+expect(() =>
+  new AnvilOptions().network
+    .withOptimism()
+    .evm.withHardfork(Hardfork.Prague)
+    .validate(),
+).toThrow(/use an OpHardfork value instead/);
+// …and a chain is either OP Stack or Celo.
+expect(() => new AnvilOptions().network.withCelo().withOptimism()).toThrow(
+  AnvilConfigurationError,
+);
+```
+<!-- /snippet -->
+
+<!-- snippet: test/unit/options.test.ts#log-formats -->
+```ts
+const json = new AnvilOptions().logs.jsonLogFormat().disableConsoleLog();
+expect(json.toCommand()).toBe(
+  "anvil --host 0.0.0.0 --json --disable-console-log",
+);
+
+const markdown = new AnvilOptions().logs
+  .withMarkdownFormat()
+  .verboseLogs(LogVerbosity.Four);
+expect(markdown.toCommand()).toBe("anvil --host 0.0.0.0 --md -vvvv");
+
+// Conflicting log settings fail as soon as they are set.
+expect(() => new AnvilOptions().logs.quiet().verboseLogs(2)).toThrow(
+  /cannot be combined with --quiet/,
+);
+```
+<!-- /snippet -->
+
+<!-- snippet: test/unit/options.test.ts#server-paths -->
+```ts
+const options = new AnvilOptions().server
+  .withIpc() // /tmp/anvil.ipc inside the container
+  .withThreads(4) // 0 = one per logical core
+  .withCachePath("/tmp/anvil-cache"); // container path
+expect(options.toCommand()).toBe(
+  "anvil --host 0.0.0.0 --ipc --threads 4 --cache-path /tmp/anvil-cache",
+);
+```
+<!-- /snippet -->
+
+<!-- snippet: test/unit/options.test.ts#memory-limit -->
+```ts
+const options = new AnvilOptions().evm.withMemoryLimit(1n << 30n); // bytes
+expect(options.toCommand()).toBe(
+  "anvil --host 0.0.0.0 --memory-limit 1073741824",
+);
+```
+<!-- /snippet -->
+
+<!-- snippet: test/unit/options.test.ts#fork-headers -->
+```ts
+const options = new AnvilOptions().fork
+  .withForkUrl("https://rpc.example@19000000") // url@block works too
+  .withForkHeaders("Authorization: Bearer <key>", "X-Team: qa") // replace all
+  .withForkHeader("X-Run: 42"); // add one
+expect(options.toCommand()).toBe(
+  "anvil --host 0.0.0.0 --fork-url https://rpc.example --fork-block-number 19000000 " +
+    "--fork-header 'Authorization: Bearer <key>' --fork-header 'X-Team: qa' " +
+    "--fork-header 'X-Run: 42'",
+);
+```
+<!-- /snippet -->
+
+Durations and timestamps, as the time helpers take them:
+
+<!-- snippet: test/unit/options.test.ts#units -->
+```ts
+expect(durationToSeconds({ days: 1, hours: 2 })).toBe(93_600n);
+expect(durationToSeconds(90)).toBe(90n);
+expect(timestampToSeconds(new Date("2030-01-01T00:00:00Z"))).toBe(
+  1_893_456_000n,
+);
+expect(() => durationToSeconds({ days: -1 })).toThrow(RangeError);
+```
+<!-- /snippet -->
+
+## Example helpers
+
+Reusable code in [src/](src) (regions shown on the docs site):
+`loadArtifact()` ([src/artifacts.ts](src/artifacts.ts)), `deployContract()`
+and the read helpers ([src/deploy.ts](src/deploy.ts)), `expectRevert()` /
+`decodeRevert()` ([src/reverts.ts](src/reverts.ts)) and `triggerUntil()`
+([src/watchers.ts](src/watchers.ts)).
 
 ## Contract artifacts
 
@@ -2741,7 +3548,7 @@ examples/
 └── test/
     ├── e2e/                 the workflows, one file each
     ├── unit/                link guards, artifacts, API coverage, helpers, configuration, README sync
-    └── support/             anvilContainer(), startNetwork(): Docker or local runtime
+    └── support/             setup-runtime.ts (--no-docker), local anvil runtime, startNetwork()
 ```
 
 | Script | Description |
@@ -2749,7 +3556,7 @@ examples/
 | `npm run link:library` | link the library checkout (run after installs) |
 | `npm run typecheck` | `tsc` with `nodenext` resolution (the package's real `exports`) |
 | `npm run lint` / `lint:fix` | ESLint + Prettier |
-| `npm test` | unit tests (no Docker, no anvil) |
+| `npm run test:unit [-- --coverage]` | unit tests (no Docker, no anvil) |
 | `npm run test:e2e [-- --no-docker]` | workflows against anvil |
 | `npm run docs:sync [-- --check]` | regenerate / verify the README samples |
 | `npm run check` | everything above, e2e in Docker |

@@ -45,9 +45,8 @@ export async function probeJsonRpc(
 }
 
 /**
- * Ready when `eth_chainId` succeeds. Unlike log matching this works with any
- * log settings (`--quiet`, `--json`, …), and it fails immediately with
- * anvil's output if the process exits.
+ * Ready when `eth_chainId` answers (any log settings); fails fast with anvil's
+ * output if it exits. Probes every 10 ms, checks the container every 100 ms.
  */
 export class AnvilReadyWaitStrategy implements WaitStrategy {
   /** Testcontainers' default startup timeout. */
@@ -55,7 +54,8 @@ export class AnvilReadyWaitStrategy implements WaitStrategy {
 
   /** `eth_chainId` reported by the successful readiness probe. */
   public chainId?: number;
-  private pollIntervalMs = 50;
+  private pollIntervalMs = 10;
+  private inspectIntervalMs = 100;
   private requestTimeoutMs = 2_000;
   private startupTimeoutMs = AnvilReadyWaitStrategy.DEFAULT_STARTUP_TIMEOUT_MS;
   private startupTimeoutSet = false;
@@ -83,9 +83,15 @@ export class AnvilReadyWaitStrategy implements WaitStrategy {
     return this.startupTimeoutMs;
   }
 
-  /** Delay between probes (default 50 ms). */
+  /** Delay between probes (default 10 ms). */
   public withPollInterval(ms: number): this {
     this.pollIntervalMs = ms;
+    return this;
+  }
+
+  /** Minimum delay between container state checks (default 100 ms). */
+  public withInspectInterval(ms: number): this {
+    this.inspectIntervalMs = ms;
     return this;
   }
 
@@ -103,6 +109,7 @@ export class AnvilReadyWaitStrategy implements WaitStrategy {
     const url = `http://${client.info.containerRuntime.host}:${boundPorts.getBinding(this.port)}`;
     const deadline = Date.now() + this.startupTimeoutMs;
     const command = `Command: ${this.command.join(" ")}`;
+    let nextInspect = 0;
 
     while (Date.now() < deadline) {
       // Probe first: the success path needs no Docker API call.
@@ -115,6 +122,13 @@ export class AnvilReadyWaitStrategy implements WaitStrategy {
         this.chainId = Number.isFinite(chainId) ? chainId : undefined;
         return;
       }
+      if (Date.now() < nextInspect) {
+        await new Promise((resolve) =>
+          setTimeout(resolve, this.pollIntervalMs),
+        );
+        continue;
+      }
+      nextInspect = Date.now() + this.inspectIntervalMs;
       const state = (await client.container.inspect(container)).State;
       if (state.Status === "exited" || state.Status === "dead") {
         const logs = await tailContainerLogs(client, container);

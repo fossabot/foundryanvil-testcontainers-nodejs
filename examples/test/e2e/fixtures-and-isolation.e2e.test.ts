@@ -4,6 +4,7 @@
  * the lower-level snapshot tools and resetting a node.
  */
 import {
+  AnvilContainer,
   AnvilOptions,
   AnvilTestClientError,
   useAnvil,
@@ -19,7 +20,6 @@ import {
   mint,
   timeLockVault,
 } from "../../src";
-import { anvilContainer } from "../support/runtime";
 
 /** A BIP-39 test vector: any 12–24 word mnemonic works. */
 const MNEMONIC =
@@ -30,7 +30,7 @@ let token: Address;
 let vault: Address;
 
 const anvil = useAnvil(
-  anvilContainer(
+  new AnvilContainer(
     new AnvilOptions().account
       .withMnemonic(MNEMONIC)
       .withAccounts(3)
@@ -178,7 +178,7 @@ describe("accumulating state and reset()", () => {
   // #region no-isolation
   // reset() discards every snapshot, so this suite opts out of isolation.
   const node = useAnvil(
-    anvilContainer().withTestClient((client) => client.withAccount(0)),
+    new AnvilContainer().withTestClient((client) => client.withAccount(0)),
     { isolation: "none" },
   );
   let deployed: Address;

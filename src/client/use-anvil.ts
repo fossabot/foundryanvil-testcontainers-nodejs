@@ -8,11 +8,8 @@ import { AnvilTestClientError } from "../errors";
 type Hook = (fn: () => Promise<void>, timeout?: number) => unknown;
 
 /**
- * Test-framework hooks used by {@link useAnvil}. Jest, Vitest (with
- * `globals: true`) and Jasmine provide them as globals; Mocha's `before` /
- * `after` are picked up too (Mocha ignores the timeout argument: raise its
- * `--timeout`). Pass them explicitly otherwise, e.g.
- * `import { beforeAll, afterAll, afterEach } from "vitest"`.
+ * Hooks for {@link useAnvil}: taken from the globals of Jest, Vitest
+ * (`globals: true`), Mocha and Jasmine, or passed explicitly.
  */
 export interface AnvilTestHooks {
   /** Starts the node (Mocha: `before`). */
@@ -31,16 +28,11 @@ export interface AnvilStartable<TAccount extends Account | undefined> {
 
 /** Settings of {@link useAnvil}. */
 export interface UseAnvilSettings<TAccount extends Account | undefined> {
-  /**
-   * `"test"` (default): every test starts from the state right after
-   * `setup`: after each test the mempool is emptied (reverting a snapshot
-   * keeps pending transactions) and the post-setup snapshot is restored, in
-   * milliseconds. `"none"`: state carries over between tests.
-   */
+  /** `"test"` (default): each test starts from the post-`setup` state; `"none"`: state carries over. */
   readonly isolation?: "test" | "none";
   /** Runs once after start, before the isolation baseline: deploy fixtures, fund accounts… */
   readonly setup?: (anvil: StartedAnvilContainer<TAccount>) => unknown;
-  /** Timeout of the start/setup and stop hooks in ms (default 120 000, enough to pull the image). */
+  /** Start/setup and stop hook timeout in ms (default 120 000: time to pull the image). */
   readonly timeout?: number;
   /** Explicit hooks instead of the framework globals. */
   readonly hooks?: AnvilTestHooks;
@@ -81,22 +73,12 @@ function resolveHooks(
 }
 
 /**
- * Starts a node for the current test file and wires it into the test
- * lifecycle: `beforeAll` starts it (and runs `setup`), `afterAll` stops it,
- * and with `isolation: "test"` (default) `afterEach` restores the state of
- * right after setup.
- *
- * Returns a handle with the full {@link StartedAnvilContainer} API that is
- * usable inside tests and hooks; using it earlier (e.g. at `describe` time)
- * throws {@link AnvilTestClientError} `NOT_STARTED`.
- *
+ * One node per test file: started (and `setup`) in `beforeAll`, restored after
+ * each test, stopped in `afterAll`. The handle works in tests and hooks only
+ * (`NOT_STARTED` earlier).
  * @example
- * const anvil = useAnvil(new AnvilContainer().withTestClient((c) => c.withAccount(0)), {
- *   setup: async (node) => { token = await deployToken(node) },
- * });
- * it("transfers", async () => {
- *   await anvil.testClient.sendTransaction({ to: bob, value: 1n });
- * });
+ * const anvil = useAnvil(new AnvilContainer().withTestClient((c) => c.withAccount(0)), { setup });
+ * @see {@link https://hella-web3.github.io/foundryanvil-testcontainers-nodejs/docs/tasks/test-suites/share-a-node | Share one node per test file} (docs)
  */
 export function useAnvil<TAccount extends Account | undefined = undefined>(
   container: AnvilStartable<TAccount>,
@@ -131,11 +113,15 @@ export function useAnvil<TAccount extends Account | undefined = undefined>(
   if (isolation === "test") {
     hooks.afterEach(async () => {
       if (!started || !baseline) return;
-      try {
-        // evm_revert keeps pending transactions: they would leak into the next test.
-        await started.testClient.dropAllTransactions();
-        await baseline.restore();
-      } catch (error: unknown) {
+      // evm_revert keeps pending transactions (they would leak into the next
+      // test), and snapshots don't include the pool: empty it while the state
+      // is restored — one round trip less per test.
+      const [dropped, restored] = await Promise.allSettled([
+        started.testClient.dropAllTransactions(),
+        baseline.restore(),
+      ]);
+      if (restored.status === "rejected") {
+        const error: unknown = restored.reason;
         if ((error as AnvilTestClientError).code !== "SNAPSHOT_NOT_FOUND") {
           throw error;
         }
@@ -146,6 +132,7 @@ export function useAnvil<TAccount extends Account | undefined = undefined>(
           { cause: error },
         );
       }
+      if (dropped.status === "rejected") throw dropped.reason;
     });
   }
 

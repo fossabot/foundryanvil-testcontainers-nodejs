@@ -19,11 +19,9 @@ export const FORK_FLAGS = groupFlags("fork");
 const I128 = 2n ** 127n;
 
 /**
- * Fork a remote network (`.fork`). Every option requires `withForkUrl()`
- * (checked at build time, so call order doesn't matter). The URL is resolved
- * from inside the container: use `host.docker.internal` for host nodes.
- *
- * @example new AnvilOptions().fork.withForkUrl(url, 18_000_000).withRetries(10).noRateLimit()
+ * Forking (`.fork`); every option needs `withForkUrl()`, in any order. URLs
+ * resolve inside the container (`host.docker.internal` for the host).
+ * @example new AnvilOptions().fork.withForkUrl(url, 18_000_000).withRetries(10)
  */
 export class ForkingOptions extends OptionsGroup {
   protected readonly groupName = "fork";
@@ -48,7 +46,7 @@ export class ForkingOptions extends OptionsGroup {
     return block === undefined ? this : this.withForkBlockNumber(block);
   }
 
-  /** Block to fork from; negative is relative to `latest` (`--fork-block-number`). Conflicts with `withForkTransactionHash`. */
+  /** Block to fork at; negative is relative to the latest (`--fork-block-number`). */
   public withForkBlockNumber(blockNumber: Integerish): this {
     return this.setValue(
       "--fork-block-number",
@@ -59,7 +57,7 @@ export class ForkingOptions extends OptionsGroup {
     );
   }
 
-  /** Fork from the state after a transaction (`--fork-transaction-hash`). Conflicts with `withForkBlockNumber`. */
+  /** Forks at the block before a transaction's block (`--fork-transaction-hash`). */
   public withForkTransactionHash(hash: TransactionHash): this {
     return this.setValue(
       "--fork-transaction-hash",
@@ -67,7 +65,7 @@ export class ForkingOptions extends OptionsGroup {
     );
   }
 
-  /** Skip fetching the chain id – offline start (`--fork-chain-id`). Also needs a fork block number or transaction hash. */
+  /** Skips fetching the chain id (`--fork-chain-id`); needs a fork block or transaction hash. */
   public withForkChainId(chainId: Integerish): this {
     return this.setValue(
       "--fork-chain-id",

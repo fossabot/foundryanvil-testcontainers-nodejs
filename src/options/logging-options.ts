@@ -13,7 +13,7 @@ export const LOGGING_FLAGS = groupFlags("logs");
 /** Verbosity accepted by {@link LoggingOptions.verboseLogs}. */
 export type VerbosityLevel = LogVerbosity | 1 | 2 | 3 | 4 | 5;
 
-/** Log format and verbosity (`.logs`). Readiness doesn't depend on logs, so all modes are safe. */
+/** Log format and verbosity (`.logs`); readiness doesn't depend on logs. */
 export class LoggingOptions extends OptionsGroup {
   protected readonly groupName = "logs";
 

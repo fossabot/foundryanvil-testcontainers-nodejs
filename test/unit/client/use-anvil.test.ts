@@ -53,6 +53,43 @@ describe("useAnvil", () => {
     await rpc.stop();
   });
 
+  it("empties the pool while restoring: one round trip less per test", async () => {
+    const { hooks, run } = fakeHooks();
+    useAnvil(startable(), { hooks });
+    await run("beforeAll");
+    // Hold the drop until the revert has been received: they run concurrently.
+    let releaseDrop!: () => void;
+    const dropHeld = new Promise<void>((resolve) => (releaseDrop = resolve));
+    rpc.overrides.set("anvil_dropAllTransactions", async () => {
+      await dropHeld;
+      return null;
+    });
+    rpc.overrides.set("evm_revert", () => {
+      releaseDrop();
+      return true;
+    });
+    rpc.calls.length = 0;
+    await run("afterEach");
+    expect(rpc.calls.map((call) => call.method).sort()).toEqual([
+      "anvil_dropAllTransactions",
+      "evm_revert",
+      "evm_snapshot",
+    ]);
+  });
+
+  it("still restores the baseline when emptying the pool fails", async () => {
+    const { hooks, run } = fakeHooks();
+    useAnvil(startable(), { hooks });
+    await run("beforeAll");
+    rpc.failNext.set("anvil_dropAllTransactions", {
+      code: -32602, // not retried by viem
+      message: "pool unavailable",
+    });
+    rpc.calls.length = 0;
+    await expect(run("afterEach")).rejects.toThrow(/pool unavailable/);
+    expect(rpc.callsFor("evm_revert")).toHaveLength(1);
+  });
+
   it("starts in beforeAll, isolates each test and stops in afterAll", async () => {
     const { hooks, registered, run } = fakeHooks();
     const container = startable();

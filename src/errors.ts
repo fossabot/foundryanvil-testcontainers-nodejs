@@ -1,10 +1,7 @@
 import type { TransactionReceipt } from "viem";
 import type { AnvilFlag } from "./flags/registry";
 
-/**
- * Invalid configuration: bad value, conflicting flags or unmet dependency.
- * The message names the fluent methods and flags involved.
- */
+/** Invalid value, conflicting flags or unmet dependency; names the methods and flags involved. */
 export class AnvilConfigurationError extends Error {
   /** Flag that triggered the error. */
   public readonly flag?: AnvilFlag;
@@ -22,7 +19,7 @@ export class AnvilConfigurationError extends Error {
   }
 }
 
-/** anvil did not become ready (exited, timed out, Docker failure); carries the command and log tail. */
+/** anvil exited, timed out or Docker failed; carries the command and log tail. */
 export class AnvilStartupError extends Error {
   public readonly command: readonly string[];
   public readonly logs?: string;
@@ -38,10 +35,7 @@ export class AnvilStartupError extends Error {
   }
 }
 
-/**
- * Invalid test client configuration ({@link TestClientOptions}), detected
- * before the container starts. Also an {@link AnvilConfigurationError}.
- */
+/** Invalid {@link TestClientOptions}, detected before start. */
 export class AnvilTestClientConfigurationError extends AnvilConfigurationError {
   /** `TestClientOptions` setting involved, e.g. `"withAccount"`. */
   public readonly setting: string;
@@ -108,7 +102,7 @@ export class AnvilTestClientError extends Error {
   }
 }
 
-/** A transaction was mined with status `reverted`; carries the receipt and, when recoverable, the revert reason. */
+/** A mined transaction reverted; carries the receipt and, when recoverable, the reason. */
 export class AnvilTransactionRevertedError extends AnvilTestClientError {
   /** Hash of the reverted transaction. */
   public readonly hash: `0x${string}`;
@@ -136,11 +130,7 @@ export class AnvilTransactionRevertedError extends AnvilTestClientError {
   }
 }
 
-/**
- * @internal One-line reason of an error: viem's short message plus the
- * node's own explanation (`details`), e.g. "Invalid parameters were provided
- * to the RPC method: anvil_setMinGasPrice is not supported when EIP-1559 is active".
- */
+/** @internal viem's short message plus the node's `details`, on one line. */
 export function errorReason(error: unknown): string {
   const { shortMessage, details } = (error ?? {}) as {
     shortMessage?: string;

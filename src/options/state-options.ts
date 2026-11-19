@@ -31,13 +31,8 @@ type FileFlag = keyof typeof CONTAINER_FILE_PATHS;
 type Transfer = "import" | "export-on-start" | "export-on-stop" | "state";
 
 /**
- * State persistence, genesis, history and mempool order (`.state`).
- *
- * File options take a {@link FilePath}: a plain string is a **host** path,
- * copied into the container before start (inputs) or back after start/stop
- * (outputs); `containerPath("/abs")` is used verbatim. Dumps on exit need a
- * graceful stop, which {@link StartedAnvilContainer.stop} performs.
- *
+ * State persistence, genesis, history and mempool order (`.state`). File
+ * options take host paths (copied in / out) or `containerPath("/abs")`.
  * @example new AnvilOptions().state.withState("./.anvil/state.json").withStateInterval(30)
  */
 export class StateOptions extends OptionsGroup {
@@ -48,7 +43,7 @@ export class StateOptions extends OptionsGroup {
     super(store);
   }
 
-  /** Start from a state snapshot (`--load-state`); the host file must exist. Conflicts with `withInit`, `withState`. */
+  /** Starts from a state file (`--load-state`); the host file must exist. */
   public withLoadState(file: FilePath): this {
     return this.file("--load-state", file, "import");
   }
@@ -58,21 +53,17 @@ export class StateOptions extends OptionsGroup {
     return this.file("--init", file, "import");
   }
 
-  /**
-   * Dump state on exit / every `withStateInterval` (`--dump-state`), copied to
-   * the host on stop; an existing directory becomes `<dir>/state.json`.
-   * Conflicts with `withInit`, `withState`.
-   */
+  /** Dumps state on exit (`--dump-state`), copied to the host on stop; a directory gets `state.json`. */
   public withDumpState(file: FilePath): this {
     return this.file("--dump-state", file, "export-on-stop");
   }
 
-  /** Load (if present) and dump the same file (`--state`). Conflicts with `withInit`, `withLoadState`, `withDumpState`. */
+  /** Loads (if present) and dumps the same file (`--state`). */
   public withState(file: FilePath): this {
     return this.file("--state", file, "state");
   }
 
-  /** Write anvil's resolved config incl. keys as JSON, copied to the host after start (`--config-out`). */
+  /** anvil's resolved config (incl. keys) as JSON, copied to the host after start (`--config-out`). */
   public withConfigOut(file: FilePath): this {
     return this.file("--config-out", file, "export-on-start");
   }
@@ -85,12 +76,12 @@ export class StateOptions extends OptionsGroup {
     );
   }
 
-  /** Keep historical snapshots in dumps (`--preserve-historical-states`). Requires a dump target. */
+  /** Keeps historical states in dumps (`--preserve-historical-states`); needs a dump target. */
   public withPreserveHistoricalStates(enabled = true): this {
     return this.toggleFlag("--preserve-historical-states", enabled);
   }
 
-  /** Max states persisted on disk (`--max-persisted-states`). Conflicts with `withPruneHistory`. */
+  /** Max states persisted on disk (`--max-persisted-states`). */
   public withMaxPersistedStates(count: Integerish): this {
     return this.setValue(
       "--max-persisted-states",
@@ -106,7 +97,7 @@ export class StateOptions extends OptionsGroup {
     );
   }
 
-  /** Blocks with transactions kept in memory (`--transaction-block-keeper`). */
+  /** Blocks whose transactions are kept; older ones are forgotten (`--transaction-block-keeper`). */
   public withTransactionBlockKeeper(count: Integerish): this {
     return this.setValue(
       "--transaction-block-keeper",

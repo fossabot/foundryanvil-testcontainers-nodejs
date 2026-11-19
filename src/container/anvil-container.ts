@@ -29,21 +29,12 @@ import { AnvilReadyWaitStrategy, probeJsonRpc } from "./wait-strategy";
 export const DEFAULT_ANVIL_IMAGE = "ghcr.io/foundry-rs/foundry:v1.6.0-rc1";
 
 /**
- * Testcontainers module running anvil with an {@link AnvilOptions}
- * configuration and a pre-configured viem test client
- * ({@link withTestClient}). `start()` validates both, copies input files,
- * starts anvil and waits for JSON-RPC. All `GenericContainer` builders remain
- * available (`withStartupTimeout`, `withNetwork`, …).
- *
- * `TAccount` is the test client's default account type (see
- * {@link withTestClient}).
- *
+ * Testcontainers module for anvil: {@link AnvilOptions} plus test client
+ * settings → a started node. `GenericContainer` builders remain available.
+ * `TAccount`: the default account's type.
  * @example
- * const anvil = await new AnvilContainer(new AnvilOptions().mining.withNoMining())
- *   .withTestClient((client) => client.withAccount(0))
- *   .start();
- * await anvil.confirm(anvil.testClient.sendTransaction({ to: bob, value: parseEther("1") }));
- * await anvil.stop();
+ * const anvil = await new AnvilContainer(options).withTestClient((c) => c.withAccount(0)).start();
+ * @see {@link https://hella-web3.github.io/foundryanvil-testcontainers-nodejs/docs/reference/anvil-container | AnvilContainer reference} (docs)
  */
 export class AnvilContainer<
   TAccount extends Account | undefined = undefined,
@@ -83,10 +74,8 @@ export class AnvilContainer<
   }
 
   /**
-   * Configures the test client exposed as `StartedAnvilContainer.testClient`:
-   * transport, polling, timeouts, retries, batching, default account and
-   * chain metadata. Validated against the anvil options before start.
-   * @example new AnvilContainer(options).withTestClient((c) => c.withAccount(0).withPollingInterval(50))
+   * Settings of `StartedAnvilContainer.testClient`, validated before start.
+   * @example new AnvilContainer(options).withTestClient((c) => c.withAccount(0))
    */
   public withTestClient<A extends Account | undefined>(
     options:
@@ -125,9 +114,7 @@ export class AnvilContainer<
   }
 
   /**
-   * Validates the anvil and test client options and applies entrypoint,
-   * command, port, file copies and wait strategy. Called by {@link start};
-   * idempotent; needs no Docker.
+   * Validates all options and configures the container, without Docker (idempotent).
    * @throws AnvilConfigurationError (incl. AnvilTestClientConfigurationError)
    */
   public prepare(): AnvilConfiguration {
@@ -176,23 +163,18 @@ export class AnvilContainer<
   }
 
   /**
-   * Starts the prepared container and waits for the wait strategy (Docker via
-   * Testcontainers). Extension point for other runtimes, e.g. a local anvil
-   * binary in tests without Docker: return any `StartedTestContainer` whose
-   * `getHost()` / `getMappedPort(port)` reach anvil's JSON-RPC once it is
-   * ready (run `this.prepare()` for the validated command line). Validation,
-   * chain id resolution, test client setup and error handling stay the same.
-   * Stop-time file exports (`--dump-state`, `--state`) additionally need
-   * Docker to remove the stopped container.
+   * Starts the prepared container. Override to run anvil elsewhere (e.g. a
+   * local binary): return a ready `StartedTestContainer` whose `getHost()` /
+   * `getMappedPort(port)` reach JSON-RPC; `this.prepare()` has the command.
    */
   protected startRuntime(): Promise<StartedTestContainer> {
     return super.start();
   }
 
   /**
-   * Starts anvil, waits until it serves JSON-RPC and sets up the test client.
-   * @throws AnvilConfigurationError for invalid options (before anything starts).
-   * @throws AnvilStartupError when anvil exits or never gets ready (includes command and logs).
+   * Starts anvil and sets up the test client once it serves JSON-RPC.
+   * @throws AnvilConfigurationError for invalid options, before anything starts
+   * @throws AnvilStartupError when anvil exits or never gets ready (with command and logs)
    */
   public override async start(): Promise<StartedAnvilContainer<TAccount>> {
     const configuration =

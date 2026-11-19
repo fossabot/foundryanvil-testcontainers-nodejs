@@ -26,6 +26,7 @@ interface RevertLike {
   cause?: unknown;
 }
 
+// #region decode-revert
 /** Finds the decoded revert in an error chain (`undefined` if it is not a revert). */
 export function decodeRevert(error: unknown): DecodedRevert | undefined {
   for (
@@ -43,6 +44,7 @@ export function decodeRevert(error: unknown): DecodedRevert | undefined {
   }
   return undefined;
 }
+// #endregion decode-revert
 
 /**
  * Awaits `action` and asserts it reverted with the custom error `errorName`

@@ -4,18 +4,20 @@
  * against real deployed state, change anything locally and reset back.
  */
 import {
+  AnvilContainer,
   AnvilOptions,
   Hardfork,
   type StartedAnvilContainer,
   useAnvil,
 } from "@hellaweb3/foundryanvil-testcontainers-nodejs";
-import { type Account, type Address, parseEther } from "viem";
-import { balanceOf, deployToken, exampleToken, mint } from "../../src";
 import {
-  anvilContainer,
-  type NodeNetwork,
-  startNetwork,
-} from "../support/runtime";
+  type Account,
+  type Address,
+  parseEther,
+  type TransactionReceipt,
+} from "viem";
+import { balanceOf, deployToken, exampleToken, mint } from "../../src";
+import { type NodeNetwork, startNetwork } from "../support/runtime";
 
 /** A token holder on "mainnet" whose key we do not have. */
 const HOLDER: Address = "0x47ac0Fb4F2D84898e4D9E7b4DaB3C24507a6D503";
@@ -31,7 +33,7 @@ beforeAll(async () => {
   // #region upstream
   mainnet = await network
     .attach(
-      anvilContainer(new AnvilOptions().evm.withChainId(1)),
+      new AnvilContainer(new AnvilOptions().evm.withChainId(1)),
       "mainnet",
       "mainnet-backup", // a second endpoint, see setRpcUrl below
     )
@@ -53,26 +55,28 @@ afterAll(async () => {
 /** A forked node; built lazily because the upstream starts in beforeAll. */
 function forkContainer() {
   // #region fork
-  return network
-    .attach(
-      anvilContainer(
-        new AnvilOptions().fork
-          .withForkUrl(forkUrl, forkBlock) // pin the block: reproducible tests
-          .withRetries(2) // upstream hiccups…
-          .withForkRetryBackoff(500) // …are retried after 500 ms
-          .withTimeout(10_000) // per upstream request
-          .noStorageCaching() // don't persist fetched state to anvil's disk cache
-          .noRateLimit() // a local upstream needs no compute-unit throttling
-          // anvil derives a fork's hardfork from chain id + block number; for
-          // "chain 1 at block 3" that is Frontier, so pin it explicitly.
-          .evm.withHardfork(Hardfork.Cancun),
-      ),
-    )
-    .withTestClient((client) =>
-      // Act as the holder: impersonated at startup, typed default account.
-      client.withAccount(HOLDER, { impersonate: true }),
-    );
+  const options = new AnvilOptions().fork
+    .withForkUrl(forkUrl, forkBlock) // pin the block: reproducible tests
+    .withRetries(2) // upstream hiccups…
+    .withForkRetryBackoff(500) // …are retried after 500 ms
+    .withTimeout(10_000) // per upstream request
+    .noStorageCaching() // don't persist fetched state to anvil's disk cache
+    .noRateLimit() // a local upstream needs no compute-unit throttling
+    // anvil derives a fork's hardfork from chain id + block number; for
+    // "chain 1 at block 3" that is Frontier, so pin it explicitly.
+    .evm.withHardfork(Hardfork.Cancun);
+
+  const container = new AnvilContainer(options).withTestClient((client) =>
+    // Act as the holder: impersonated at startup, typed default account.
+    client.withAccount(HOLDER, { impersonate: true }),
+  );
   // #endregion fork
+  return network.attach(container); // reach the upstream (Docker network)
+}
+
+/** Starts a fork with `options`, reachable from the upstream's network. */
+function startFork(options: AnvilOptions): Promise<StartedAnvilContainer> {
+  return network.attach(new AnvilContainer(options)).start();
 }
 
 describe("forking", () => {
@@ -158,6 +162,95 @@ describe("forking", () => {
         parseEther("1000000") + 1n, // now includes the later mint
       );
       // #endregion fork-move
+    });
+  });
+  describe("choosing the fork point", () => {
+    const RECIPIENT: Address = "0x3333333333333333333333333333333333333333";
+    let payment: TransactionReceipt;
+
+    beforeAll(async () => {
+      payment = await mainnet.confirm(
+        mainnet.testClient.sendTransaction({
+          to: RECIPIENT,
+          value: parseEther("1"),
+        }),
+      );
+    });
+
+    it("forks right before a transaction", async () => {
+      // #region fork-at-transaction
+      const fork = await startFork(
+        new AnvilOptions().fork
+          .withForkUrl(forkUrl)
+          .withForkTransactionHash(payment.transactionHash)
+          .evm.withHardfork(Hardfork.Cancun),
+      );
+      try {
+        // Forked at the block before the payment: it has not happened yet.
+        expect(await fork.testClient.getBlockNumber()).toBe(
+          payment.blockNumber - 1n,
+        );
+        expect(await fork.getBalance(RECIPIENT)).toBe(0n);
+      } finally {
+        await fork.stop();
+      }
+      // #endregion fork-at-transaction
+    });
+
+    it("forks relative to the upstream's latest block", async () => {
+      // #region fork-relative-block
+      const latest = await mainnet.testClient.getBlockNumber();
+      const fork = await startFork(
+        new AnvilOptions().fork
+          .withForkUrl(forkUrl)
+          .withForkBlockNumber(-1) // negative: blocks before the latest
+          .evm.withHardfork(Hardfork.Cancun),
+      );
+      try {
+        const { forkedNetwork } = await fork.metadata();
+        expect(forkedNetwork?.forkBlockNumber).toBe(Number(latest - 1n));
+      } finally {
+        await fork.stop();
+      }
+      // #endregion fork-relative-block
+    });
+
+    it("starts without asking the upstream for its chain id", async () => {
+      // #region fork-offline-chain-id
+      const fork = await startFork(
+        new AnvilOptions().fork
+          .withForkUrl(forkUrl, forkBlock) // needs a block number or tx hash
+          .withForkChainId(1) // skips eth_chainId on startup
+          .evm.withHardfork(Hardfork.Cancun),
+      );
+      try {
+        expect(fork.chainId).toBe(1);
+        expect(await balanceOf(fork.testClient, token, HOLDER)).toBe(
+          parseEther("1000000"),
+        );
+      } finally {
+        await fork.stop();
+      }
+      // #endregion fork-offline-chain-id
+    });
+
+    it("sends provider credentials and throttles requests", async () => {
+      // #region fork-provider
+      const fork = await startFork(
+        new AnvilOptions().fork
+          .withForkUrl(forkUrl, forkBlock)
+          .withForkHeader("Authorization: Bearer <api-key>") // every upstream request
+          .withComputeUnitsPerSecond(100) // stay under the provider's rate limit
+          .evm.withHardfork(Hardfork.Cancun),
+      );
+      try {
+        expect(await balanceOf(fork.testClient, token, HOLDER)).toBe(
+          parseEther("1000000"),
+        );
+      } finally {
+        await fork.stop();
+      }
+      // #endregion fork-provider
     });
   });
 });

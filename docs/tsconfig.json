@@ -1,0 +1,28 @@
+{
+  "extends": "@docusaurus/tsconfig",
+  "compilerOptions": {
+    "baseUrl": ".",
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    // Scripts, plugins and tests run on Node's built-in TypeScript support
+    // (type stripping): only erasable syntax and explicit `.ts` imports.
+    "allowImportingTsExtensions": true,
+    "erasableSyntaxOnly": true,
+    "verbatimModuleSyntax": true
+  },
+  "include": [
+    "docusaurus.config.ts",
+    "sidebars.ts",
+    "src",
+    "plugins",
+    "scripts",
+    "test"
+  ],
+  "exclude": [".docusaurus", "build", "coverage", "node_modules"]
+}

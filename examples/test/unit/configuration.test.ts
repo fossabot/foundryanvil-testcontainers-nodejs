@@ -76,4 +76,43 @@ describe("configuration checks without Docker", () => {
     expect(base.build().pollingInterval).toBe(50); // presets stay untouched
     // #endregion presets
   });
+
+  it("tunes the client's transport", () => {
+    // #region client-options
+    const client = new TestClientOptions()
+      .withTransport("webSocket") // eth_subscribe-based watchers
+      .withTimeout(5_000) // per request (default 10 000 ms)
+      .withRetries(0, 50) // count, base delay in ms (default 3, 150)
+      .withCacheTime(1_000) // reuse e.g. the block number for 1 s (default 0)
+      .withPollingInterval(10) // watchers and receipt waits (default 25 ms)
+      .withLocalAccount(0); // dev account 0, signed locally
+
+    expect(client.build()).toMatchObject({
+      transport: "webSocket",
+      timeout: 5_000,
+      retryCount: 0,
+      retryDelay: 50,
+      account: { kind: "index", index: 0, signing: "local" },
+    });
+    // JSON-RPC batching needs HTTP:
+    expect(() => client.clone().withBatch().build()).toThrow(
+      AnvilTestClientConfigurationError,
+    );
+    // #endregion client-options
+  });
+
+  it("exposes its options and the prepared command without Docker", () => {
+    // #region container-getters
+    const options = new AnvilOptions().mining.withBlockTime(2);
+    const container = new AnvilContainer(options).withTestClient((client) =>
+      client.withAccount(0),
+    );
+
+    expect(container.anvilOptions).toBe(options);
+    expect(container.testClientOptions.build().account?.kind).toBe("index");
+    expect(container.prepare().command.join(" ")).toBe(
+      "anvil --host 0.0.0.0 --block-time 2",
+    );
+    // #endregion container-getters
+  });
 });

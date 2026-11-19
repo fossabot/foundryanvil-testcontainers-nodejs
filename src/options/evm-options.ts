@@ -24,11 +24,7 @@ export class EvmOptions extends OptionsGroup {
     super(store);
   }
 
-  /**
-   * EVM hardfork (`--hardfork`): a {@link Hardfork}, or an {@link OpHardfork}
-   * with `network.withOptimism()`. `Hardfork.Latest` removes the flag (anvil's
-   * default) because anvil rejects a literal `latest`.
-   */
+  /** Hardfork (`--hardfork`); {@link OpHardfork} needs `--optimism`; `Hardfork.Latest` omits the flag. */
   public withHardfork(hardfork: Hardfork | OpHardfork): this {
     if (!HARDFORKS.includes(hardfork)) {
       fail(
@@ -57,7 +53,7 @@ export class EvmOptions extends OptionsGroup {
     );
   }
 
-  /** Gas price (`--gas-price`, u128). */
+  /** Gas price in wei (`--gas-price`, u128); `eth_gasPrice` suggests it on pre-London hardforks. */
   public withGasPrice(price: Integerish): this {
     return this.setValue(
       "--gas-price",
@@ -65,7 +61,7 @@ export class EvmOptions extends OptionsGroup {
     );
   }
 
-  /** Don't enforce a minimum priority fee (`--disable-min-priority-fee`). */
+  /** No minimum priority fee: `eth_gasPrice` suggests the base fee alone (`--disable-min-priority-fee`). */
   public disableMinPriorityFee(enabled = true): this {
     return this.toggleFlag("--disable-min-priority-fee", enabled);
   }
@@ -75,12 +71,12 @@ export class EvmOptions extends OptionsGroup {
     return this.setValue("--gas-limit", integerArg("--gas-limit", limit));
   }
 
-  /** Drop `call.gas_limit <= block.gas_limit` (`--disable-block-gas-limit`). Conflicts with `withGasLimit`. */
+  /** Transactions may exceed the block gas limit (`--disable-block-gas-limit`). */
   public disableBlockGasLimit(enabled = true): this {
     return this.toggleFlag("--disable-block-gas-limit", enabled);
   }
 
-  /** EIP-170 code size limit in bytes (`--code-size-limit`, default 0x6000). Conflicts with `disableCodeSizeLimit`. */
+  /** EIP-170 code size limit in bytes (`--code-size-limit`, default 24 576). */
   public withCodeSizeLimit(bytes: Integerish): this {
     return this.setValue(
       "--code-size-limit",
@@ -108,7 +104,7 @@ export class EvmOptions extends OptionsGroup {
     return this.toggleFlag("--disable-default-create2-deployer", enabled);
   }
 
-  /** Disable mempool balance checks (`--disable-pool-balance-checks`). */
+  /** Accepts transactions whose sender cannot pay yet (`--disable-pool-balance-checks`). */
   public disablePoolBalanceChecks(enabled = true): this {
     return this.toggleFlag("--disable-pool-balance-checks", enabled);
   }

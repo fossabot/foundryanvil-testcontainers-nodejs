@@ -1,34 +1,25 @@
 /**
  * Where the examples' e2e tests run anvil: in Docker (default, what CI must
  * use) or as a local binary (`npm run test:e2e -- --no-docker`, local testing
- * only). The mode is set by scripts/e2e.mjs.
+ * only). The mode is set by scripts/e2e.mjs; in local mode every
+ * `new AnvilContainer(…)` runs anvil as a local process (see
+ * setup-runtime.ts), so the examples use the library exactly as documented.
  */
-import {
+import type {
   AnvilContainer,
-  AnvilOptions,
-  type StartedAnvilContainer,
+  StartedAnvilContainer,
 } from "@hellaweb3/foundryanvil-testcontainers-nodejs";
 import { Network } from "testcontainers";
 import type { Account } from "viem";
-import { LocalAnvilContainer } from "./local-anvil";
 
 export type E2EMode = "docker" | "local";
 
-export const E2E_MODE: E2EMode =
-  process.env.EXAMPLES_E2E_MODE === "local" ? "local" : "docker";
-
-/**
- * `new AnvilContainer(options)` — or, with `--no-docker`, the same container
- * backed by a local anvil process. Everything else in the examples is plain
- * library API.
- */
-export function anvilContainer(
-  options: AnvilOptions = new AnvilOptions(),
-): AnvilContainer {
-  return E2E_MODE === "local"
-    ? new LocalAnvilContainer(options)
-    : new AnvilContainer(options);
+/** The runtime selected by scripts/e2e.mjs (Docker unless `--no-docker`). */
+export function e2eMode(env: NodeJS.ProcessEnv = process.env): E2EMode {
+  return env.EXAMPLES_E2E_MODE === "local" ? "local" : "docker";
 }
+
+export const E2E_MODE: E2EMode = e2eMode();
 
 /**
  * Lets nodes reach each other (e.g. a fork and its upstream): in Docker a

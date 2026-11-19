@@ -128,7 +128,7 @@ class LocalAnvilProcess implements StartedTestContainer {
       } catch {
         // Not listening yet.
       }
-      await new Promise((resolve) => setTimeout(resolve, 25));
+      await new Promise((resolve) => setTimeout(resolve, 5)); // anvil boots in ~50–150 ms
     }
     await this.stop();
     throw this.startupError(
@@ -304,6 +304,7 @@ async function startLocal(
   return anvil;
 }
 
+// #region local-container
 /**
  * An `AnvilContainer` that runs anvil as a local process. Same API, same
  * validation and the same started node type, without Docker.
@@ -315,3 +316,4 @@ export class LocalAnvilContainer<
     return startLocal(this.prepare(), this.startupTimeoutMs ?? 60_000);
   }
 }
+// #endregion local-container

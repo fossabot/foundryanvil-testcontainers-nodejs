@@ -6,7 +6,16 @@ module.exports = {
   roots: ["<rootDir>/src", "<rootDir>/test"],
   testRegex: "\\.test\\.ts$",
   globalSetup: "<rootDir>/test/support/global-setup.cjs",
+  // `--no-docker`: run every AnvilContainer as a local anvil process.
+  setupFiles: ["<rootDir>/test/support/setup-runtime.ts"],
   moduleFileExtensions: ["ts", "js", "cjs", "json"],
+  // `npm run test:unit -- --coverage`: the reusable example code in src/
+  // (test support is exercised by the e2e workflows).
+  collectCoverageFrom: ["src/**/*.ts"],
+  coverageDirectory: "coverage",
+  coverageThreshold: {
+    global: { branches: 90, functions: 95, lines: 95, statements: 95 },
+  },
   transform: {
     "^.+\\.ts$": [
       "@swc/jest",

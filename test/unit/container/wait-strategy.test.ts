@@ -100,6 +100,7 @@ describe("AnvilReadyWaitStrategy", () => {
     const client = fakeClient(["running"]);
     const strategy = new AnvilReadyWaitStrategy(8545, ["anvil"])
       .withPollInterval(10)
+      .withInspectInterval(0)
       .withRequestTimeout(500)
       .withStartupTimeout(5_000);
     await expect(
@@ -109,6 +110,27 @@ describe("AnvilReadyWaitStrategy", () => {
     // Probe first: Docker is only inspected after failed probes.
     expect(client.container.inspect).toHaveBeenCalledTimes(2);
     expect(strategy.chainId).toBe(31337);
+  });
+
+  it("probes often but inspects the container at most every inspect interval", async () => {
+    let requests = 0;
+    behaviour = (_req, res) => {
+      requests += 1;
+      if (requests < 6) {
+        res.writeHead(503).end();
+        return;
+      }
+      res.writeHead(200, { "content-type": "application/json" });
+      res.end(JSON.stringify({ jsonrpc: "2.0", id: 1, result: "0x1" }));
+    };
+    const client = fakeClient(["running"]);
+    await new AnvilReadyWaitStrategy(8545)
+      .withPollInterval(1)
+      .withInspectInterval(60_000)
+      .waitUntilReady(container, bound());
+    expect(requests).toBe(6);
+    // Checked on the first failure (early crash detection), then throttled.
+    expect(client.container.inspect).toHaveBeenCalledTimes(1);
   });
 
   it("ignores error responses until a result is returned", async () => {

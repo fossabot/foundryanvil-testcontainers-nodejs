@@ -3,7 +3,10 @@
  * multi-block simulations with time overrides, call overrides, access lists,
  * gas and fee estimation, and storage proofs.
  */
-import { useAnvil } from "@hellaweb3/foundryanvil-testcontainers-nodejs";
+import {
+  AnvilContainer,
+  useAnvil,
+} from "@hellaweb3/foundryanvil-testcontainers-nodejs";
 import {
   type Address,
   encodeFunctionData,
@@ -18,7 +21,6 @@ import {
   mint,
   timeLockVault,
 } from "../../src";
-import { anvilContainer } from "../support/runtime";
 
 const LOCK = 24n * 60n * 60n; // 1 day
 
@@ -27,7 +29,7 @@ let vault: Address;
 let alice: Address;
 
 const anvil = useAnvil(
-  anvilContainer().withTestClient((client) => client.withAccount(0)),
+  new AnvilContainer().withTestClient((client) => client.withAccount(0)),
   {
     setup: async (node) => {
       [, alice] = await node.addresses();

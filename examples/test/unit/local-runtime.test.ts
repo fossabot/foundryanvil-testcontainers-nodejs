@@ -1,8 +1,11 @@
 import {
+  AnvilContainer,
   AnvilOptions,
   AnvilStartupError,
 } from "@hellaweb3/foundryanvil-testcontainers-nodejs";
 import { LocalAnvilContainer, localizeArgs } from "../support/local-anvil";
+import { e2eMode } from "../support/runtime";
+import { useLocalRuntime } from "../support/setup-runtime";
 
 describe("local anvil runtime (--no-docker)", () => {
   it("binds to the loopback interface and maps container file paths", () => {
@@ -54,6 +57,28 @@ describe("local anvil runtime (--no-docker)", () => {
     } finally {
       if (previous === undefined) delete process.env.ANVIL_BINARY;
       else process.env.ANVIL_BINARY = previous;
+    }
+  });
+});
+
+describe("runtime selection", () => {
+  it("runs in Docker unless --no-docker selected the local runtime", () => {
+    expect(e2eMode({})).toBe("docker");
+    expect(e2eMode({ EXAMPLES_E2E_MODE: "docker" })).toBe("docker");
+    expect(e2eMode({ EXAMPLES_E2E_MODE: "local" })).toBe("local");
+  });
+
+  it("routes every AnvilContainer to the local runtime", () => {
+    type WithRuntime = { startRuntime: unknown };
+    const prototype = AnvilContainer.prototype as unknown as WithRuntime;
+    const original = prototype.startRuntime;
+    try {
+      useLocalRuntime();
+      expect(prototype.startRuntime).toBe(
+        (LocalAnvilContainer.prototype as unknown as WithRuntime).startRuntime,
+      );
+    } finally {
+      prototype.startRuntime = original;
     }
   });
 });

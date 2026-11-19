@@ -29,3 +29,7 @@ Thumbs.db
 # Examples project (separate npm project)
 examples/node_modules
 examples/.npm-link
+# Docs site (separate npm project)
+docs/node_modules
+docs/build
+docs/.docusaurus

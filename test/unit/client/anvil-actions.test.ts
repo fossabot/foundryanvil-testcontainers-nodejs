@@ -208,6 +208,42 @@ describe("anvil actions", () => {
       expect(rpc.callsFor("anvil_mine")).toHaveLength(0);
     });
 
+    it("re-reads a receipt that is committed just after the hash is returned", async () => {
+      rpc.receiptDelayReads = 1; // anvil's automine race
+      const receipt = await anvil.confirm(HASH);
+      expect(receipt.status).toBe("success");
+      // The second read runs together with the automine probe: no mining, no waiting.
+      expect(rpc.callsFor("eth_getTransactionReceipt")).toHaveLength(2);
+      expect(rpc.callsFor("anvil_getAutomine")).toHaveLength(1);
+      expect(rpc.callsFor("anvil_mine")).toHaveLength(0);
+      expect(rpc.callsFor("eth_blockNumber")).toHaveLength(0);
+    });
+
+    it("polls with a short backoff until the receipt shows up", async () => {
+      rpc.receiptDelayReads = 4;
+      const started = Date.now();
+      await anvil.confirm(HASH);
+      expect(rpc.callsFor("eth_getTransactionReceipt")).toHaveLength(5);
+      expect(Date.now() - started).toBeLessThan(1_000);
+    });
+
+    it("times out like viem's receipt wait", async () => {
+      rpc.receiptDelayReads = 1_000_000;
+      const error = await anvil
+        .confirm(HASH, { timeout: 30 })
+        .catch((e: unknown) => e);
+      expect((error as Error).name).toBe(
+        "WaitForTransactionReceiptTimeoutError",
+      );
+    });
+
+    it("treats an unanswered automine probe as automine", async () => {
+      rpc.receiptDelayReads = 2;
+      rpc.failNext.set("anvil_getAutomine", { code: -32601, message: "nope" });
+      await anvil.confirm(HASH);
+      expect(rpc.callsFor("anvil_mine")).toHaveLength(0);
+    });
+
     it("mines one block when automine is off", async () => {
       rpc.automine = false;
       rpc.pending = true;

@@ -1,0 +1,8 @@
+node_modules
+# Docusaurus
+.docusaurus
+.cache-loader
+build
+# Tests
+coverage
+*.log

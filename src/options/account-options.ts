@@ -51,10 +51,7 @@ export class AccountOptions extends OptionsGroup {
     return this.setValue("--mnemonic", mnemonicArg("--mnemonic", phrase));
   }
 
-  /**
-   * Random mnemonic (`--mnemonic-random[=words]`, default 12 words). Keys are
-   * available via {@link StartedAnvilContainer.accounts} unless logs are quiet.
-   */
+  /** Random mnemonic (`--mnemonic-random[=words]`, default 12); keys are known unless `--quiet`. */
   public withRandomMnemonic(words?: number): this {
     if (words === undefined) return this.setValue("--mnemonic-random", null);
     const count = integerArg("--mnemonic-random", words);
@@ -75,7 +72,7 @@ export class AccountOptions extends OptionsGroup {
     );
   }
 
-  /** Any sender can be impersonated without unlocking (`--auto-impersonate`). Same as `evm.autoImpersonate()`. */
+  /** Impersonates every sender (`--auto-impersonate`); same as `evm.autoImpersonate()`. */
   public autoImpersonate(enabled = true): this {
     return this.toggleFlag("--auto-impersonate", enabled);
   }

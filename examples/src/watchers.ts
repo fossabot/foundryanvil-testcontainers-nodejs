@@ -16,6 +16,7 @@ export interface TriggerUntilOptions {
   readonly timeoutMs?: number;
 }
 
+// #region trigger-until
 /**
  * Runs `trigger` (e.g. mine a block, send a transaction), then checks
  * `observed`, repeating until it returns `true`.
@@ -47,3 +48,4 @@ export async function triggerUntil(
     }
   }
 }
+// #endregion trigger-until

@@ -1,7 +1,7 @@
 {
   "name": "@hellaweb3/foundryanvil-testcontainers-nodejs",
   "description": "Fluent, type-safe Testcontainers module for Foundry Anvil: every anvil CLI flag with conflict/dependency validation, reliable startup, host/container state transfer and a chain-aware viem test client with helpers.",
-  "homepage": "https://github.com/hella-web3/foundryanvil-testcontainers-nodejs#readme",
+  "homepage": "https://hella-web3.github.io/foundryanvil-testcontainers-nodejs/",
   "repository": "https://github.com/hella-web3/foundryanvil-testcontainers-nodejs",
   "bugs": "https://github.com/hella-web3/foundryanvil-testcontainers-nodejs/issues",
   "keywords": [
@@ -10,7 +10,14 @@
     "anvil",
     "ethereum",
     "viem",
-    "evm"
+    "evm",
+    "blockchain",
+    "typescript",
+    "nodejs",
+    "docker",
+    "testing",
+    "integration-testing",
+    "e2e-testing"
   ],
   "version": "0.5.2",
   "license": "MIT",
@@ -42,18 +49,32 @@
     "test:unit": "jest --colors --injectGlobals test/unit",
     "test:e2e": "node scripts/e2e.mjs",
     "test:coverage": "jest --colors --injectGlobals --coverage test/unit",
+    "bench": "node scripts/bench.mjs",
     "lint": "eslint \"{src,apps,libs,test}/**/*.ts\" --fix",
-    "examples:setup": "pnpm build && npm link && cd examples && npm install && npm run link:library",
-    "examples:unit": "pnpm examples:setup && cd examples && npm run typecheck && npm run lint && npm run test:unit",
-    "examples:e2e": "pnpm examples:setup && cd examples && npm run typecheck && npm run lint && npm run test:e2e",
     "typecheck": "tsc --noEmit",
     "prepublishOnly": "pnpm run build",
-    "check:local": "pnpm build && pnpm typecheck && pnpm lint && pnpm test:unit && pnpm test:e2e --no-docker && pnpm examples:unit && pnpm examples:e2e --no-docker",
-    "check:docker": "pnpm build && pnpm typecheck && pnpm lint && pnpm test:unit && pnpm test:e2e && pnpm examples:unit && pnpm examples:e2e "
+    "lockfiles:check": "node scripts/lockfiles.mjs check",
+    "lockfiles:restore": "node scripts/lockfiles.mjs restore",
+    "examples:setup": "node scripts/examples.mjs setup",
+    "examples:unit": "node scripts/examples.mjs unit",
+    "examples:e2e": "node scripts/examples.mjs e2e",
+    "docs:setup": "node scripts/docs.mjs setup",
+    "docs:sync": "node scripts/docs.mjs sync",
+    "docs:check": "node scripts/docs.mjs check",
+    "docs:start": "node scripts/docs.mjs start",
+    "docs:build": "node scripts/docs.mjs build",
+    "docs:serve": "node scripts/docs.mjs serve",
+    "docs:typecheck": "node scripts/docs.mjs typecheck",
+    "docs:lint": "node scripts/docs.mjs lint",
+    "docs:unit": "node scripts/docs.mjs unit",
+    "docs:e2e": "node scripts/docs.mjs e2e",
+    "gate": "pnpm build && pnpm lint && pnpm typecheck && pnpm test:unit --coverage && pnpm test:e2e --no-docker && pnpm examples:e2e --no-docker && pnpm examples:unit --coverage && pnpm docs:unit --coverage && pnpm docs:e2e --no-docker --skip-examples",
+    "check:local": "pnpm gate",
+    "check:docker": "pnpm build && pnpm lint && pnpm typecheck && pnpm test:unit --coverage && pnpm test:e2e && pnpm examples:e2e && pnpm examples:unit --coverage && pnpm docs:unit --coverage && pnpm docs:e2e --skip-examples"
   },
   "dependencies": {
     "testcontainers": "^12.2.0",
-    "viem": "^2.57.20"
+    "viem": "^2.57.1"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
@@ -113,13 +134,16 @@
     },
     "testPathIgnorePatterns": [
       "/node_modules/",
-      "<rootDir>/examples/"
+      "<rootDir>/examples/",
+      "<rootDir>/docs/"
     ],
     "modulePathIgnorePatterns": [
-      "<rootDir>/examples/"
+      "<rootDir>/examples/",
+      "<rootDir>/docs/"
     ]
   },
   "engines": {
     "node": ">=22"
-  }
+  },
+  "packageManager": "pnpm@10.34.5"
 }

@@ -3,6 +3,7 @@
  * estimations, and reverted transactions that were actually mined.
  */
 import {
+  AnvilContainer,
   AnvilTransactionRevertedError,
   useAnvil,
 } from "@hellaweb3/foundryanvil-testcontainers-nodejs";
@@ -17,12 +18,11 @@ import {
 } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { deployToken, exampleToken, expectRevert, mint } from "../../src";
-import { anvilContainer } from "../support/runtime";
 
 let token: Address;
 
 const anvil = useAnvil(
-  anvilContainer().withTestClient((client) => client.withAccount(0)),
+  new AnvilContainer().withTestClient((client) => client.withAccount(0)),
   { setup: async (node) => void (token = await deployToken(node.testClient)) },
 );
 

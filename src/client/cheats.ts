@@ -38,20 +38,10 @@ function seconds(label: string, value: Duration): number {
 }
 
 /**
- * A fluent, awaitable chain of node manipulations ("cheats") that runs in
- * order when awaited. Every viem test action that changes state has a step,
- * plus the anvil extras (ERC-20 dealing, chain id, time, rollback…).
- *
- * Steps are queued, not executed, until the chain is awaited (or `run()`);
- * a failing step rejects with {@link AnvilTestClientError} `CHEAT_FAILED`
- * naming the step, and later steps are skipped. A chain runs once.
- *
- * @example
- * await anvil.cheats
- *   .setBalanceEther(whale, 1_000)
- *   .impersonate(whale)
- *   .increaseTime({ days: 7 })
- *   .mine();
+ * Queued state changes that run in order, once, when awaited (or `run()`).
+ * A failing step rejects with `CHEAT_FAILED` and skips the rest.
+ * @example await anvil.cheats.setBalanceEther(whale, 1_000).impersonate(whale).increaseTime({ days: 7 }).mine();
+ * @see {@link https://hella-web3.github.io/foundryanvil-testcontainers-nodejs/docs/reference/cheats | Every cheats step} (docs)
  */
 export class AnvilCheats<
   TAccount extends Account | undefined = undefined,
@@ -124,10 +114,7 @@ export class AnvilCheats<
     );
   }
 
-  /**
-   * One storage slot (`anvil_setStorageAt`). `value` is a 32-byte word; a
-   * `bigint` is encoded for you.
-   */
+  /** One storage slot (`anvil_setStorageAt`); a `bigint` value is encoded to 32 bytes. */
   public setStorageAt(
     address: Address,
     slot: number | Hex,
@@ -233,7 +220,7 @@ export class AnvilCheats<
     );
   }
 
-  /** Gas price the node suggests (`eth_gasPrice`) in wei (`anvil_setMinGasPrice`; pre-London hardforks only). */
+  /** Suggested gas price in wei (`anvil_setMinGasPrice`; pre-London only). */
   public setMinGasPrice(wei: bigint): this {
     return this.add("setMinGasPrice", [wei], (c) =>
       c.setMinGasPrice({ gasPrice: wei }),
@@ -314,7 +301,7 @@ export class AnvilCheats<
   }
 
   /**
-   * Any custom step, e.g. a transaction between cheats.
+   * Any client call as a step.
    * @example anvil.cheats.impersonate(whale).step((c) => c.sendTransaction({ account: whale, to, value }))
    */
   public step(

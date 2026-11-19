@@ -1,16 +1,26 @@
 /**
- * Workflow: configuring the node itself — CORS for browser dApps, EVM
- * limits, the default CREATE2 deployer, history pruning and the genesis
- * block number — each verified through the test client.
+ * Workflow: configuring the node itself — CORS for browser dApps, request
+ * size, EVM limits, the mempool's balance checks, the default CREATE2
+ * deployer, gas pricing, finality, history pruning and the genesis block
+ * number — each verified through the test client.
  */
 import {
+  AnvilContainer,
   AnvilOptions,
   AnvilTransactionRevertedError,
+  Hardfork,
   useAnvil,
 } from "@hellaweb3/foundryanvil-testcontainers-nodejs";
-import { type Address, concat, getContractAddress, parseEther } from "viem";
+import {
+  type Address,
+  concat,
+  getContractAddress,
+  type Hex,
+  parseEther,
+  parseGwei,
+} from "viem";
+import { generatePrivateKey, privateKeyToAccount } from "viem/accounts";
 import { fixedPriceOracle, oversizedContract } from "../../src";
-import { anvilContainer } from "../support/runtime";
 
 /** The deterministic-deployment proxy anvil pre-deploys on every chain. */
 const CREATE2_DEPLOYER: Address = "0x4e59b44847b379578588920cA78FbF26c0B4956C";
@@ -28,9 +38,11 @@ describe("node configuration", () => {
   describe("CORS for browser dApps", () => {
     // #region cors
     const open = useAnvil(
-      anvilContainer(new AnvilOptions().server.withAllowOrigin(ORIGIN)),
+      new AnvilContainer(new AnvilOptions().server.withAllowOrigin(ORIGIN)),
     );
-    const closed = useAnvil(anvilContainer(new AnvilOptions().server.noCors()));
+    const closed = useAnvil(
+      new AnvilContainer(new AnvilOptions().server.noCors()),
+    );
 
     it("allows the configured origin", async () => {
       const response = await preflight(open.rpcUrl);
@@ -45,13 +57,38 @@ describe("node configuration", () => {
     // #endregion cors
   });
 
+  describe("request size", () => {
+    // #region request-size
+    const strict = useAnvil(new AnvilContainer());
+    const unlimited = useAnvil(
+      new AnvilContainer(new AnvilOptions().server.noRequestSizeLimit()),
+    );
+    // 2 MB of calldata: a request body of about 4 MB once hex encoded.
+    const bigCall = {
+      to: "0x0000000000000000000000000000000000000001",
+      data: `0x${"00".repeat(2_000_000)}`,
+      gas: 30_000_000n,
+    } as const satisfies { to: Address; data: Hex; gas: bigint };
+
+    it("rejects very large requests by default", async () => {
+      await expect(strict.testClient.call(bigCall)).rejects.toThrow(
+        /Invalid request/,
+      );
+    });
+
+    it("accepts them with noRequestSizeLimit()", async () => {
+      await expect(unlimited.testClient.call(bigCall)).resolves.toBeDefined();
+    });
+    // #endregion request-size
+  });
+
   describe("contract size limit (EIP-170)", () => {
     // #region code-size
     const strict = useAnvil(
-      anvilContainer().withTestClient((client) => client.withAccount(0)),
+      new AnvilContainer().withTestClient((client) => client.withAccount(0)),
     );
     const raised = useAnvil(
-      anvilContainer(
+      new AnvilContainer(
         new AnvilOptions().evm.withCodeSizeLimit(32_768),
       ).withTestClient((client) => client.withAccount(0)),
     );
@@ -79,15 +116,108 @@ describe("node configuration", () => {
       expect((code!.length - 2) / 2).toBe(24_577);
     });
     // #endregion code-size
+
+    // #region no-code-size-limit
+    const unlimited = useAnvil(
+      new AnvilContainer(
+        new AnvilOptions().evm.disableCodeSizeLimit(),
+      ).withTestClient((client) => client.withAccount(0)),
+    );
+
+    it("deploys contracts of any size without a limit", async () => {
+      const receipt = await unlimited.confirm(
+        unlimited.testClient.deployContract({
+          abi: oversizedContract.abi,
+          bytecode: oversizedContract.bytecode,
+        }),
+      );
+      expect(receipt.status).toBe("success");
+    });
+    // #endregion no-code-size-limit
+  });
+
+  describe("mempool balance checks", () => {
+    // #region pool-balance-checks
+    // Accept transactions whose sender cannot pay (yet): fund it before mining.
+    const node = useAnvil(
+      new AnvilContainer(
+        new AnvilOptions().mining.withNoMining().evm.disablePoolBalanceChecks(),
+      ),
+    );
+
+    it("queues a transaction from an unfunded sender", async () => {
+      const user = privateKeyToAccount(generatePrivateKey()).address;
+      const [alice] = await node.addresses();
+      const hash = await node.testClient.sendUnsignedTransaction({
+        from: user,
+        to: alice,
+        value: parseEther("1"),
+      });
+      expect((await node.testClient.getTxpoolStatus()).pending).toBe(1);
+
+      await node.cheats.setBalanceEther(user, 2).mine();
+      const receipt = await node.testClient.getTransactionReceipt({ hash });
+      expect(receipt.status).toBe("success");
+    });
+    // #endregion pool-balance-checks
+  });
+
+  describe("gas pricing", () => {
+    // #region gas-price
+    // Pre-London chains have no base fee: pin the gas price the node suggests.
+    const legacy = useAnvil(
+      new AnvilContainer(
+        new AnvilOptions().evm
+          .withHardfork(Hardfork.Berlin)
+          .withGasPrice(parseGwei("5")),
+      ),
+    );
+
+    it("suggests the configured gas price", async () => {
+      expect(await legacy.testClient.getGasPrice()).toBe(parseGwei("5"));
+    });
+    // #endregion gas-price
+
+    // #region no-priority-fee
+    // By default anvil suggests base fee + 1 gwei; drop the minimum tip.
+    const tipless = useAnvil(
+      new AnvilContainer(new AnvilOptions().evm.disableMinPriorityFee()),
+    );
+
+    it("suggests the base fee without a tip", async () => {
+      const { baseFeePerGas } = await tipless.testClient.getBlock();
+      expect(await tipless.testClient.getGasPrice()).toBe(baseFeePerGas);
+    });
+    // #endregion no-priority-fee
+  });
+
+  describe("finality", () => {
+    // #region slots-in-an-epoch
+    // `safe` trails the head by one epoch, `finalized` by two (default: 32 slots).
+    const node = useAnvil(
+      new AnvilContainer(new AnvilOptions().mining.withSlotsInAnEpoch(1)),
+    );
+
+    it("derives the safe and finalized blocks from the epoch length", async () => {
+      await node.mine(5);
+      const safe = await node.testClient.getBlock({ blockTag: "safe" });
+      const finalized = await node.testClient.getBlock({
+        blockTag: "finalized",
+      });
+      expect([safe.number, finalized.number]).toEqual([4n, 3n]);
+    });
+    // #endregion slots-in-an-epoch
   });
 
   describe("deterministic deployments", () => {
     // #region create2
     const node = useAnvil(
-      anvilContainer().withTestClient((client) => client.withAccount(0)),
+      new AnvilContainer().withTestClient((client) => client.withAccount(0)),
     );
     const bare = useAnvil(
-      anvilContainer(new AnvilOptions().evm.disableDefaultCreate2Deployer()),
+      new AnvilContainer(
+        new AnvilOptions().evm.disableDefaultCreate2Deployer(),
+      ),
     );
 
     it("deploys to a precomputed address through the CREATE2 deployer", async () => {
@@ -120,9 +250,9 @@ describe("node configuration", () => {
 
   describe("block gas limit", () => {
     // #region block-gas-limit
-    const limited = useAnvil(anvilContainer());
+    const limited = useAnvil(new AnvilContainer());
     const unlimited = useAnvil(
-      anvilContainer(new AnvilOptions().evm.disableBlockGasLimit()),
+      new AnvilContainer(new AnvilOptions().evm.disableBlockGasLimit()),
     );
 
     it("rejects transactions above the block gas limit by default", async () => {
@@ -154,7 +284,7 @@ describe("node configuration", () => {
     // #region server
     // anvil listens on 9545 inside the container; the host port is mapped.
     const custom = useAnvil(
-      anvilContainer(new AnvilOptions().server.withPort(9545).logs.quiet()),
+      new AnvilContainer(new AnvilOptions().server.withPort(9545).logs.quiet()),
     );
 
     it("maps the configured port to a free host port", async () => {
@@ -175,12 +305,12 @@ describe("node configuration", () => {
     // #region history
     // Long-running suites: keep only the latest state in memory.
     const pruned = useAnvil(
-      anvilContainer(new AnvilOptions().state.withPruneHistory()),
+      new AnvilContainer(new AnvilOptions().state.withPruneHistory()),
       { isolation: "none" },
     );
     // Start at a mainnet-like height.
     const tall = useAnvil(
-      anvilContainer(new AnvilOptions().mining.withBlockNumber(20_000_000)),
+      new AnvilContainer(new AnvilOptions().mining.withBlockNumber(20_000_000)),
     );
 
     it("answers historical queries only without pruning", async () => {
@@ -196,5 +326,27 @@ describe("node configuration", () => {
       expect(await tall.testClient.getBlockNumber()).toBe(20_000_000n);
     });
     // #endregion history
+
+    // #region transaction-keeper
+    // Keep transactions of the latest block only: older ones are forgotten.
+    const forgetful = useAnvil(
+      new AnvilContainer(
+        new AnvilOptions().state.withTransactionBlockKeeper(1),
+      ).withTestClient((client) => client.withAccount(0)),
+    );
+
+    it("forgets transactions of older blocks", async () => {
+      const [, bob] = await forgetful.addresses();
+      const { transactionHash: hash } = await forgetful.confirm(
+        forgetful.testClient.sendTransaction({ to: bob, value: 1n }),
+      );
+      expect(await forgetful.testClient.getTransaction({ hash })).toBeDefined();
+
+      await forgetful.mine(2);
+      await expect(
+        forgetful.testClient.getTransaction({ hash }),
+      ).rejects.toThrow(/could not be found/);
+    });
+    // #endregion transaction-keeper
   });
 });
