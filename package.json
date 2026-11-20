@@ -19,7 +19,7 @@
     "integration-testing",
     "e2e-testing"
   ],
-  "version": "0.6.1",
+  "version": "0.7.0",
   "license": "MIT",
   "author": "Chris Anatalio",
   "files": [
