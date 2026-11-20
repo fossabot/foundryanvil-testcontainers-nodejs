@@ -1,4 +1,5 @@
 import Link from "@docusaurus/Link";
+import useBaseUrl from "@docusaurus/useBaseUrl";
 import useDocusaurusContext from "@docusaurus/useDocusaurusContext";
 import CodeBlock from "@theme/CodeBlock";
 import Heading from "@theme/Heading";
@@ -70,6 +71,22 @@ export default function Home(): ReactNode {
           against a real anvil node in CI.{" "}
           <Link to="/docs/deep-dives/tested-docs">How the docs are tested</Link>
         </p>
+        <div className={styles.emblem}>
+          <a
+            href="https://www.getfoundry.sh/anvil"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            <img
+              src={useBaseUrl("/img/foundry-hero.jpg")}
+              alt="Foundry"
+              width={146}
+              height={73}
+              loading="lazy"
+            />
+            <span className={styles.emblemCaption}>Built on Foundry Anvil</span>
+          </a>
+        </div>
       </main>
     </Layout>
   );

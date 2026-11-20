@@ -90,3 +90,41 @@
     transform: none;
   }
 }
+
+.emblem {
+  display: flex;
+  justify-content: center;
+  margin-top: 3rem;
+}
+
+.emblem a {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  text-decoration: none;
+}
+
+.emblemCaption {
+  font-size: 0.75rem;
+  color: var(--ifm-color-emphasis-600);
+  transition: color 0.2s ease;
+}
+
+.emblem a:hover .emblemCaption {
+  color: var(--ifm-color-emphasis-800);
+}
+
+.emblem img {
+  width: 120px;
+  height: auto;
+  border-radius: 8px;
+  opacity: 0.45;
+  filter: saturate(0.7);
+  transition: opacity 0.2s ease, filter 0.2s ease;
+}
+
+.emblem a:hover img {
+  opacity: 0.9;
+  filter: none;
+}
