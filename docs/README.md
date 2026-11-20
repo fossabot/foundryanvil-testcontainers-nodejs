@@ -1,7 +1,7 @@
 # Documentation site
 
 The [Docusaurus](https://docusaurus.io) site published at
-<https://hella-labs.github.io/foundryanvil-testcontainers-nodejs/>.
+<https://hellalabs.dev/foundryanvil-testcontainers-nodejs/>.
 
 A separate npm project (own `package.json`, lockfile, TypeScript, ESLint and
 tests), excluded from the library's builds, lint and tests.
@@ -58,8 +58,9 @@ Inside `docs/`, like any npm project (after `pnpm build` at the root):
 | `npm run test:e2e [-- --no-build]` | build the site and check it |
 | `npm run verify` | all of the above |
 
-`DOCS_URL` / `DOCS_BASE_URL` override the site URL and base path (the Pages
-workflow sets them).
+The site's URLs (`SITE_URL`, `BASE_URL`, `DOCS_URL`), the repository and the
+package name live in `src/lib/site.mts`, the single source for the config,
+plugins, scripts and tests.
 
 ## Layout
 

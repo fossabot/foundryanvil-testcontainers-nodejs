@@ -1,63 +1,92 @@
 .hero {
-  padding: 4rem 0;
+  padding: 5rem 0 4rem;
   text-align: center;
+  background: transparent;
+  border-bottom: 1px solid var(--hl-border);
+}
+
+.title {
+  font-size: clamp(2.25rem, 6vw, 4.25rem);
+  line-height: 1.1;
+  letter-spacing: -1px;
+}
+
+.tagline {
+  color: var(--hl-text-muted);
+  font-size: 1.125rem;
+  margin: 1.5rem auto 0;
+  max-width: 44rem;
 }
 
 .buttons {
   display: flex;
+  flex-wrap: wrap;
   gap: 1rem;
   justify-content: center;
-  flex-wrap: wrap;
-  margin-top: 1.5rem;
+  margin: 2.5rem 0 2rem;
 }
 
 .install {
-  display: inline-block;
-  margin-top: 1.5rem;
-  padding: 0.5rem 1rem;
-  border-radius: var(--ifm-code-border-radius);
-  background: var(--ifm-color-emphasis-200);
-  color: var(--ifm-font-color-base);
-  font-family: var(--ifm-font-family-monospace);
+  margin: 1.5rem auto 0;
+  max-width: 40rem;
+  text-align: left;
 }
 
-.tasks {
-  padding: 3rem 0;
+.install :global(.theme-code-block) {
+  margin-bottom: 0;
 }
 
-.grid {
+.features {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(16rem, 1fr));
-  gap: 1rem;
+  gap: 1.5rem;
+  grid-template-columns: repeat(auto-fit, minmax(17rem, 1fr));
 }
 
-.card {
+.feature {
+  background: var(--hl-bg-muted);
+  border: 1px solid var(--hl-border-alt);
+  border-radius: 1rem;
+  padding: 1.75rem;
+  transition: all 0.2s;
+}
+
+.feature:hover {
+  box-shadow: var(--hl-shadow-card);
+  transform: translateY(-4px);
+}
+
+.feature {
   display: block;
-  height: 100%;
-  padding: 1rem 1.25rem;
-  border: 1px solid var(--ifm-color-emphasis-300);
-  border-radius: var(--ifm-card-border-radius);
   color: var(--ifm-font-color-base);
 }
 
-.card:hover {
-  border-color: var(--ifm-color-primary);
+.feature:hover {
   text-decoration: none;
+  color: var(--ifm-font-color-base);
 }
 
-.card h3 {
-  margin-bottom: 0.25rem;
-  font-size: 1rem;
+.feature h3 {
+  color: var(--hl-heading);
 }
 
-.card p {
+.feature p {
+  font-size: 0.9375rem;
   margin: 0;
-  font-size: 0.9rem;
-  color: var(--ifm-color-emphasis-700);
+}
+
+.sectionTitle {
+  margin-bottom: 1.5rem;
+  text-align: center;
 }
 
 .tested {
-  margin-top: 2rem;
+  margin-top: 3rem;
   text-align: center;
-  color: var(--ifm-color-emphasis-700);
+  color: var(--hl-text-muted);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .feature:hover {
+    transform: none;
+  }
 }

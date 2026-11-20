@@ -9,7 +9,7 @@ import * as path from "node:path";
 
 const ROOT = path.resolve(__dirname, "../../..");
 const README = fs.readFileSync(path.join(ROOT, "README.md"), "utf8");
-const SITE = "https://hella-labs.github.io/foundryanvil-testcontainers-nodejs";
+const SITE = "https://hellalabs.dev/foundryanvil-testcontainers-nodejs";
 const manifest = JSON.parse(
   fs.readFileSync(path.join(ROOT, "package.json"), "utf8"),
 ) as { homepage: string };

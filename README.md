@@ -5,12 +5,12 @@
 <a href="https://github.com/hella-labs/foundryanvil-testcontainers-nodejs/actions/workflows/main.yml"><img alt="Build+Test Status" src="https://github.com/hella-labs/foundryanvil-testcontainers-nodejs/actions/workflows/main.yml/badge.svg" /></a>
 <a href="https://www.npmjs.com/package/@hellaweb3/foundryanvil-testcontainers-nodejs"><img alt="npm version" src="https://img.shields.io/npm/v/%40hellaweb3%2Ffoundryanvil-testcontainers-nodejs" /></a>
 <a href="https://www.npmjs.com/package/@hellaweb3/foundryanvil-testcontainers-nodejs"><img alt="npm downloads" src="https://img.shields.io/npm/dy/%40hellaweb3%2Ffoundryanvil-testcontainers-nodejs" /></a>
-<a href="https://hella-labs.github.io/foundryanvil-testcontainers-nodejs/"><img alt="Documentation" src="https://img.shields.io/badge/docs-task%20guides%20%26%20API-c2410c" /></a>
+<a href="https://hellalabs.dev/foundryanvil-testcontainers-nodejs/"><img alt="Documentation" src="https://img.shields.io/badge/docs-task%20guides%20%26%20API-c2410c" /></a>
 
-**[📖 Documentation](https://hella-labs.github.io/foundryanvil-testcontainers-nodejs/)** ·
-[Quick start](https://hella-labs.github.io/foundryanvil-testcontainers-nodejs/docs/get-started/quick-start) ·
-[Tasks](https://hella-labs.github.io/foundryanvil-testcontainers-nodejs/docs) ·
-[API reference](https://hella-labs.github.io/foundryanvil-testcontainers-nodejs/docs/reference) ·
+**[📖 Documentation](https://hellalabs.dev/foundryanvil-testcontainers-nodejs/)** ·
+[Quick start](https://hellalabs.dev/foundryanvil-testcontainers-nodejs/docs/get-started/quick-start) ·
+[Tasks](https://hellalabs.dev/foundryanvil-testcontainers-nodejs/docs) ·
+[API reference](https://hellalabs.dev/foundryanvil-testcontainers-nodejs/docs/reference) ·
 [Examples](examples/README.md)
 
 </div>
@@ -35,7 +35,7 @@ A [Testcontainers](https://testcontainers.com/) module that runs a
 Default image: `ghcr.io/foundry-rs/foundry:v1.6.0-rc1` ·
 [Anvil reference](https://getfoundry.sh/anvil/reference/anvil)
 
-> The **[documentation site](https://hella-labs.github.io/foundryanvil-testcontainers-nodejs/)** is organised by task ("fast-forward
+> The **[documentation site](https://hellalabs.dev/foundryanvil-testcontainers-nodejs/)** is organised by task ("fast-forward
 > time", "act as a whale", "fork mainnet"…), with a complete API reference.
 > Every code sample there — and in this README — is a region of a test in
 > [`examples/`](examples/README.md) that runs against a real anvil in CI.
@@ -47,7 +47,7 @@ pnpm add -D @hellaweb3/foundryanvil-testcontainers-nodejs
 ```
 
 Requires Node.js ≥ 22 and a Docker-compatible runtime
-([or none](https://hella-labs.github.io/foundryanvil-testcontainers-nodejs/docs/get-started/run-without-docker)).
+([or none](https://hellalabs.dev/foundryanvil-testcontainers-nodejs/docs/get-started/run-without-docker)).
 
 ## Quick start
 
@@ -97,34 +97,34 @@ it("manipulates the chain fluently", async () => {
 
 Without `useAnvil`: `const anvil = await new AnvilContainer(options).start()`
 in `beforeAll` and `await anvil.stop()` in `afterAll`
-([lifecycle](https://hella-labs.github.io/foundryanvil-testcontainers-nodejs/docs/tasks/test-suites/manage-the-lifecycle)).
+([lifecycle](https://hellalabs.dev/foundryanvil-testcontainers-nodejs/docs/tasks/test-suites/manage-the-lifecycle)).
 
 ## Documentation
 
 | I want to… | Guide |
 |---|---|
-| Start one node per test file and reset it between tests | [Share a node](https://hella-labs.github.io/foundryanvil-testcontainers-nodejs/docs/tasks/test-suites/share-a-node) · [Isolate tests](https://hella-labs.github.io/foundryanvil-testcontainers-nodejs/docs/tasks/test-suites/isolate-tests) |
-| Use dev accounts, impersonate whales, fund accounts | [Accounts](https://hella-labs.github.io/foundryanvil-testcontainers-nodejs/docs/tasks/accounts/use-dev-accounts) · [Impersonate](https://hella-labs.github.io/foundryanvil-testcontainers-nodejs/docs/tasks/accounts/impersonate-accounts) · [Fund](https://hella-labs.github.io/foundryanvil-testcontainers-nodejs/docs/tasks/accounts/fund-accounts) |
-| Send transactions, assert custom errors, simulate | [Send](https://hella-labs.github.io/foundryanvil-testcontainers-nodejs/docs/tasks/transactions/send-transactions) · [Reverts](https://hella-labs.github.io/foundryanvil-testcontainers-nodejs/docs/tasks/transactions/assert-reverts) · [Simulate](https://hella-labs.github.io/foundryanvil-testcontainers-nodejs/docs/tasks/transactions/simulate-calls) |
-| Fast-forward time, control mining and block contents | [Time](https://hella-labs.github.io/foundryanvil-testcontainers-nodejs/docs/tasks/time-and-blocks/travel-in-time) · [Mining](https://hella-labs.github.io/foundryanvil-testcontainers-nodejs/docs/tasks/time-and-blocks/control-mining) · [Blocks](https://hella-labs.github.io/foundryanvil-testcontainers-nodejs/docs/tasks/time-and-blocks/build-blocks) |
-| Mock contracts, save and load state, custom genesis | [Mocks](https://hella-labs.github.io/foundryanvil-testcontainers-nodejs/docs/tasks/state/mock-contracts) · [State files](https://hella-labs.github.io/foundryanvil-testcontainers-nodejs/docs/tasks/state/save-and-load-state) · [Genesis](https://hella-labs.github.io/foundryanvil-testcontainers-nodejs/docs/tasks/state/custom-genesis) |
-| Fork mainnet | [Fork a chain](https://hella-labs.github.io/foundryanvil-testcontainers-nodejs/docs/tasks/forking/fork-a-chain) |
-| Watch events and query logs | [Events](https://hella-labs.github.io/foundryanvil-testcontainers-nodejs/docs/tasks/events/watch-events) |
-| Configure the chain, EVM, RPC server, logs, test client | [Configure](https://hella-labs.github.io/foundryanvil-testcontainers-nodejs/docs/tasks/configure/chain) |
-| Trace a failed transaction | [Debug](https://hella-labs.github.io/foundryanvil-testcontainers-nodejs/docs/tasks/debugging/trace-transactions) |
+| Start one node per test file and reset it between tests | [Share a node](https://hellalabs.dev/foundryanvil-testcontainers-nodejs/docs/tasks/test-suites/share-a-node) · [Isolate tests](https://hellalabs.dev/foundryanvil-testcontainers-nodejs/docs/tasks/test-suites/isolate-tests) |
+| Use dev accounts, impersonate whales, fund accounts | [Accounts](https://hellalabs.dev/foundryanvil-testcontainers-nodejs/docs/tasks/accounts/use-dev-accounts) · [Impersonate](https://hellalabs.dev/foundryanvil-testcontainers-nodejs/docs/tasks/accounts/impersonate-accounts) · [Fund](https://hellalabs.dev/foundryanvil-testcontainers-nodejs/docs/tasks/accounts/fund-accounts) |
+| Send transactions, assert custom errors, simulate | [Send](https://hellalabs.dev/foundryanvil-testcontainers-nodejs/docs/tasks/transactions/send-transactions) · [Reverts](https://hellalabs.dev/foundryanvil-testcontainers-nodejs/docs/tasks/transactions/assert-reverts) · [Simulate](https://hellalabs.dev/foundryanvil-testcontainers-nodejs/docs/tasks/transactions/simulate-calls) |
+| Fast-forward time, control mining and block contents | [Time](https://hellalabs.dev/foundryanvil-testcontainers-nodejs/docs/tasks/time-and-blocks/travel-in-time) · [Mining](https://hellalabs.dev/foundryanvil-testcontainers-nodejs/docs/tasks/time-and-blocks/control-mining) · [Blocks](https://hellalabs.dev/foundryanvil-testcontainers-nodejs/docs/tasks/time-and-blocks/build-blocks) |
+| Mock contracts, save and load state, custom genesis | [Mocks](https://hellalabs.dev/foundryanvil-testcontainers-nodejs/docs/tasks/state/mock-contracts) · [State files](https://hellalabs.dev/foundryanvil-testcontainers-nodejs/docs/tasks/state/save-and-load-state) · [Genesis](https://hellalabs.dev/foundryanvil-testcontainers-nodejs/docs/tasks/state/custom-genesis) |
+| Fork mainnet | [Fork a chain](https://hellalabs.dev/foundryanvil-testcontainers-nodejs/docs/tasks/forking/fork-a-chain) |
+| Watch events and query logs | [Events](https://hellalabs.dev/foundryanvil-testcontainers-nodejs/docs/tasks/events/watch-events) |
+| Configure the chain, EVM, RPC server, logs, test client | [Configure](https://hellalabs.dev/foundryanvil-testcontainers-nodejs/docs/tasks/configure/chain) |
+| Trace a failed transaction | [Debug](https://hellalabs.dev/foundryanvil-testcontainers-nodejs/docs/tasks/debugging/trace-transactions) |
 
 ## API at a glance
 
 | API | Reference |
 |---|---|
-| `AnvilOptions`: every anvil flag in groups (`.account`, `.evm`, `.fork`, `.mining`, `.logs`, `.network`, `.server`, `.state`), validated as you set it | [Options](https://hella-labs.github.io/foundryanvil-testcontainers-nodejs/docs/reference/anvil-options) · [Flag rules](https://hella-labs.github.io/foundryanvil-testcontainers-nodejs/docs/reference/flag-rules) |
-| `AnvilContainer`: options + test client settings → a started node | [AnvilContainer](https://hella-labs.github.io/foundryanvil-testcontainers-nodejs/docs/reference/anvil-container) |
-| `StartedAnvilContainer`: test client, cheats, account / transaction / time / state helpers | [StartedAnvilContainer](https://hella-labs.github.io/foundryanvil-testcontainers-nodejs/docs/reference/started-anvil-container) |
-| `anvil.testClient`: every viem test, public and wallet action plus anvil extras | [Test client](https://hella-labs.github.io/foundryanvil-testcontainers-nodejs/docs/reference/test-client) · [anvil extras](https://hella-labs.github.io/foundryanvil-testcontainers-nodejs/docs/reference/anvil-actions) |
-| `anvil.cheats`: fluent, awaitable chains of state changes | [Cheats](https://hella-labs.github.io/foundryanvil-testcontainers-nodejs/docs/reference/cheats) |
-| `TestClientOptions`: transport, polling, retries, batching, default account, chain | [TestClientOptions](https://hella-labs.github.io/foundryanvil-testcontainers-nodejs/docs/reference/test-client-options) |
-| `useAnvil()`: lifecycle hooks with per-test isolation | [useAnvil](https://hella-labs.github.io/foundryanvil-testcontainers-nodejs/docs/reference/use-anvil) |
-| Errors and error codes | [Errors](https://hella-labs.github.io/foundryanvil-testcontainers-nodejs/docs/reference/errors) |
+| `AnvilOptions`: every anvil flag in groups (`.account`, `.evm`, `.fork`, `.mining`, `.logs`, `.network`, `.server`, `.state`), validated as you set it | [Options](https://hellalabs.dev/foundryanvil-testcontainers-nodejs/docs/reference/anvil-options) · [Flag rules](https://hellalabs.dev/foundryanvil-testcontainers-nodejs/docs/reference/flag-rules) |
+| `AnvilContainer`: options + test client settings → a started node | [AnvilContainer](https://hellalabs.dev/foundryanvil-testcontainers-nodejs/docs/reference/anvil-container) |
+| `StartedAnvilContainer`: test client, cheats, account / transaction / time / state helpers | [StartedAnvilContainer](https://hellalabs.dev/foundryanvil-testcontainers-nodejs/docs/reference/started-anvil-container) |
+| `anvil.testClient`: every viem test, public and wallet action plus anvil extras | [Test client](https://hellalabs.dev/foundryanvil-testcontainers-nodejs/docs/reference/test-client) · [anvil extras](https://hellalabs.dev/foundryanvil-testcontainers-nodejs/docs/reference/anvil-actions) |
+| `anvil.cheats`: fluent, awaitable chains of state changes | [Cheats](https://hellalabs.dev/foundryanvil-testcontainers-nodejs/docs/reference/cheats) |
+| `TestClientOptions`: transport, polling, retries, batching, default account, chain | [TestClientOptions](https://hellalabs.dev/foundryanvil-testcontainers-nodejs/docs/reference/test-client-options) |
+| `useAnvil()`: lifecycle hooks with per-test isolation | [useAnvil](https://hellalabs.dev/foundryanvil-testcontainers-nodejs/docs/reference/use-anvil) |
+| Errors and error codes | [Errors](https://hellalabs.dev/foundryanvil-testcontainers-nodejs/docs/reference/errors) |
 
 ## Examples
 
@@ -139,7 +139,7 @@ mocking dependencies with `setCode` and state overrides, state fixtures and
 custom genesis files, forking, EIP-712 and EIP-7702 signing, chain
 configuration and reorgs, node configuration (CORS, EVM limits, CREATE2)
 and call tracing. They are the source of every code sample in the
-[documentation](https://hella-labs.github.io/foundryanvil-testcontainers-nodejs/).
+[documentation](https://hellalabs.dev/foundryanvil-testcontainers-nodejs/).
 
 ## Contributing
 

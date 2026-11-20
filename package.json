@@ -1,7 +1,7 @@
 {
   "name": "@hellaweb3/foundryanvil-testcontainers-nodejs",
   "description": "Fluent, type-safe Testcontainers module for Foundry Anvil: every anvil CLI flag with conflict/dependency validation, reliable startup, host/container state transfer and a chain-aware viem test client with helpers.",
-  "homepage": "https://hella-labs.github.io/foundryanvil-testcontainers-nodejs/",
+  "homepage": "https://hellalabs.dev/foundryanvil-testcontainers-nodejs/",
   "repository": "https://github.com/hella-labs/foundryanvil-testcontainers-nodejs",
   "bugs": "https://github.com/hella-labs/foundryanvil-testcontainers-nodejs/issues",
   "keywords": [

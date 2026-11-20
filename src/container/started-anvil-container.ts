@@ -91,7 +91,7 @@ export type TestClientAccountInput = Address | Account | { address: Address };
  * A running anvil node: a pre-configured viem {@link testClient}, fluent
  * {@link cheats}, and helpers for accounts, transactions, time, snapshots,
  * state files and diagnostics. `TAccount`: the default account's type.
- * @see {@link https://hella-labs.github.io/foundryanvil-testcontainers-nodejs/docs/reference/started-anvil-container | StartedAnvilContainer reference} (docs)
+ * @see {@link https://hellalabs.dev/foundryanvil-testcontainers-nodejs/docs/reference/started-anvil-container | StartedAnvilContainer reference} (docs)
  */
 export class StartedAnvilContainer<
   TAccount extends Account | undefined = undefined,

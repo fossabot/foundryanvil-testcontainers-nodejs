@@ -34,7 +34,7 @@ export const DEFAULT_ANVIL_IMAGE = "ghcr.io/foundry-rs/foundry:v1.6.0-rc1";
  * `TAccount`: the default account's type.
  * @example
  * const anvil = await new AnvilContainer(options).withTestClient((c) => c.withAccount(0)).start();
- * @see {@link https://hella-labs.github.io/foundryanvil-testcontainers-nodejs/docs/reference/anvil-container | AnvilContainer reference} (docs)
+ * @see {@link https://hellalabs.dev/foundryanvil-testcontainers-nodejs/docs/reference/anvil-container | AnvilContainer reference} (docs)
  */
 export class AnvilContainer<
   TAccount extends Account | undefined = undefined,

@@ -4,6 +4,7 @@
 import * as path from "node:path";
 import { fileURLToPath } from "node:url";
 import type { Region } from "./regions.mts";
+import { DEFAULT_BRANCH, REPOSITORY_URL } from "../../src/lib/site.mts";
 import { listFiles } from "./sync.mts";
 
 /** The docs project (`<repo>/docs`). */
@@ -19,12 +20,8 @@ export const REPO_ROOT = path.resolve(DOCS_ROOT, "..");
 /** Markdown pages of the site. */
 export const CONTENT_DIR = path.join(DOCS_ROOT, "content");
 
-/** GitHub repository of the library (source links, edit links). */
-export const REPOSITORY_URL =
-  "https://github.com/hella-labs/foundryanvil-testcontainers-nodejs";
-
-/** Branch the published docs link to. */
-export const DEFAULT_BRANCH = "main";
+/** GitHub repository of the library (source links, edit links) and its branch. */
+export { DEFAULT_BRANCH, REPOSITORY_URL } from "../../src/lib/site.mts";
 
 /**
  * Every document whose code samples are synced: the site's pages and the

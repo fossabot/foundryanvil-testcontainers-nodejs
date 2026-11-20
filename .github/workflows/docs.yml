@@ -69,9 +69,6 @@ jobs:
       # builds the site and checks that the built pages show those samples.
       - name: Run the samples, build the site and check it
         run: pnpm docs:e2e
-        env:
-          DOCS_URL: ${{ steps.pages.outputs.origin }}
-          DOCS_BASE_URL: ${{ env.DEPLOY == 'true' && format('{0}/', steps.pages.outputs.base_path) || '' }}
 
       - name: Upload the site
         if: env.DEPLOY == 'true'

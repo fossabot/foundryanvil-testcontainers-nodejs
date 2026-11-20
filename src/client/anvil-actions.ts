@@ -332,7 +332,7 @@ export function createAnvilActions() {
 
 /**
  * Adds {@link AnvilActions} to your own viem clients: `client.extend(anvilActions)`.
- * @see {@link https://hella-labs.github.io/foundryanvil-testcontainers-nodejs/docs/reference/anvil-actions | anvil extras reference} (docs)
+ * @see {@link https://hellalabs.dev/foundryanvil-testcontainers-nodejs/docs/reference/anvil-actions | anvil extras reference} (docs)
  */
 export const anvilActions: (client: AnyClient) => AnvilActions =
   createAnvilActions();

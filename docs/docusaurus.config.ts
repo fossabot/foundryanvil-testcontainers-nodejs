@@ -1,22 +1,20 @@
 import type * as Preset from "@docusaurus/preset-classic";
 import type { Config } from "@docusaurus/types";
 import { themes as prismThemes } from "prism-react-renderer";
-import {
-  githubSourceUrl,
-  REPO_ROOT,
-  REPOSITORY_URL,
-} from "./plugins/snippets/project.mts";
+import { githubSourceUrl, REPO_ROOT } from "./plugins/snippets/project.mts";
 import remarkSnippets, {
   type RemarkSnippetsOptions,
 } from "./plugins/snippets/remark-snippets.mts";
-
-const PACKAGE = "@hellaweb3/foundryanvil-testcontainers-nodejs";
-
-// GitHub Pages: the deploy workflow passes the Pages URL (empty = unset);
-// the defaults match https://hella-labs.github.io/foundryanvil-testcontainers-nodejs/.
-const url = process.env.DOCS_URL || "https://hella-labs.github.io";
-const baseUrl =
-  process.env.DOCS_BASE_URL || "/foundryanvil-testcontainers-nodejs/";
+import {
+  BASE_URL,
+  DEFAULT_BRANCH,
+  NPM_URL,
+  ORGANIZATION,
+  PACKAGE_NAME,
+  PROJECT,
+  REPOSITORY_URL,
+  SITE_URL,
+} from "./src/lib/site.mts";
 
 const snippets: RemarkSnippetsOptions = {
   repoRoot: REPO_ROOT,
@@ -31,10 +29,12 @@ const config: Config = {
   tagline:
     "Real anvil nodes for Node.js tests: every flag type-safe and validated, with a pre-configured viem test client.",
   favicon: "img/favicon.svg",
-  url,
-  baseUrl: baseUrl.endsWith("/") ? baseUrl : `${baseUrl}/`,
-  organizationName: "hella-labs",
-  projectName: "foundryanvil-testcontainers-nodejs",
+  // Served from hellalabs.dev (src/lib/site.mts): every URL in one place.
+  url: SITE_URL,
+  baseUrl: BASE_URL,
+  organizationName: ORGANIZATION,
+  projectName: PROJECT,
+  // GitHub Pages serves `/page` from `page.html`: no trailing slashes, no redirects.
   trailingSlash: false,
 
   onBrokenLinks: "throw",
@@ -56,7 +56,7 @@ const config: Config = {
           path: "content",
           routeBasePath: "docs",
           sidebarPath: "./sidebars.ts",
-          editUrl: `${REPOSITORY_URL}/edit/main/docs/`,
+          editUrl: `${REPOSITORY_URL}/edit/${DEFAULT_BRANCH}/docs/`,
           remarkPlugins: [[remarkSnippets, snippets]],
         },
         blog: false,
@@ -65,11 +65,21 @@ const config: Config = {
     ],
   ],
 
+  plugins: [
+    // Generates /llms.txt and /llms-full.txt (https://llmstxt.org) for LLMs and AI tools.
+    [
+      "docusaurus-plugin-llms",
+      { docsDir: "content", generateLLMsTxt: true, generateLLMsFullTxt: true },
+    ],
+  ],
+
   themeConfig: {
-    colorMode: { respectPrefersColorScheme: true },
+    // Dark by default, like hellalabs.dev; the toggle still switches and remembers the choice.
+    colorMode: { defaultMode: "dark", respectPrefersColorScheme: false },
+    docs: { sidebar: { hideable: true } },
     navbar: {
       title: "Anvil Testcontainers",
-      logo: { alt: "Anvil Testcontainers", src: "img/logo.svg" },
+      logo: { alt: "Anvil Testcontainers logo", src: "img/logo.svg" },
       items: [
         {
           type: "docSidebar",
@@ -90,7 +100,7 @@ const config: Config = {
           label: "Deep dives",
         },
         {
-          href: `https://www.npmjs.com/package/${PACKAGE}`,
+          href: NPM_URL,
           label: "npm",
           position: "right",
         },
@@ -98,7 +108,7 @@ const config: Config = {
       ],
     },
     footer: {
-      style: "dark",
+      style: "light",
       links: [
         {
           title: "Docs",
@@ -113,12 +123,15 @@ const config: Config = {
           title: "Project",
           items: [
             { label: "GitHub", href: REPOSITORY_URL },
-            { label: "Examples", href: `${REPOSITORY_URL}/tree/main/examples` },
+            {
+              label: "Examples",
+              href: `${REPOSITORY_URL}/tree/${DEFAULT_BRANCH}/examples`,
+            },
             {
               label: "Changelog",
-              href: `${REPOSITORY_URL}/blob/main/CHANGELOG.md`,
+              href: `${REPOSITORY_URL}/blob/${DEFAULT_BRANCH}/CHANGELOG.md`,
             },
-            { label: "npm", href: `https://www.npmjs.com/package/${PACKAGE}` },
+            { label: "npm", href: NPM_URL },
           ],
         },
         {
@@ -132,12 +145,21 @@ const config: Config = {
             { label: "Testcontainers", href: "https://testcontainers.com" },
           ],
         },
+        {
+          title: "Machine-readable",
+          items: [
+            // pathname:// links point at generated static files, not client-side routes.
+            { label: "Sitemap", href: "pathname:///sitemap.xml" },
+            { label: "llms.txt", href: "pathname:///llms.txt" },
+            { label: "llms-full.txt", href: "pathname:///llms-full.txt" },
+          ],
+        },
       ],
-      copyright: `MIT · Maintained by <a href="https://hellalabs.dev/">Hella Labs</a>`,
+      copyright: `${PACKAGE_NAME} – MIT licensed. Maintained by <a href="https://hellalabs.dev/">Hella Labs</a>.`,
     },
     prism: {
       theme: prismThemes.github,
-      darkTheme: prismThemes.dracula,
+      darkTheme: prismThemes.nightOwl,
       additionalLanguages: ["bash"],
     },
   } satisfies Preset.ThemeConfig,
