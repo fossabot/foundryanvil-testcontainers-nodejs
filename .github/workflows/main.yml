@@ -48,6 +48,15 @@ jobs:
       - name: Unit tests (with coverage)
         run: pnpm test:unit --coverage
 
+      - name: Upload coverage reports to Codecov
+        if: matrix.node == '24'
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: ./coverage/lcov.info
+          flags: unit
+          fail_ci_if_error: true
+
       - name: E2E tests
         run: pnpm test:e2e
 
