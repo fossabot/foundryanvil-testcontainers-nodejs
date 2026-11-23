@@ -86,7 +86,7 @@ expect(logs).toContain(`[Revert] custom error ${selector}`);
 
 `trace_transaction` (Parity style) works through `anvil.rpc()` too.
 
-## Deep dive
+## Concepts
 
-- [Signing: why anvil-signed reverts are mined](../../deep-dives/signing.md)
+- [Signing: why anvil-signed reverts are mined](../../concepts/signing.md)
 - [Assert reverts and custom errors](../transactions/assert-reverts.md)

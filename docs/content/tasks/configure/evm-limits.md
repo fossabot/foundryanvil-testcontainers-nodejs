@@ -168,6 +168,6 @@ it("queues a transaction from an unfunded sender", async () => {
 });
 ```
 
-## Deep dive
+## Concepts
 
 - Reference: [`.evm` options](../../reference/anvil-options.md#evm)

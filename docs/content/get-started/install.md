@@ -15,6 +15,6 @@ pnpm add -D @hellaweb3/foundryanvil-testcontainers-nodejs
 Add `viem` yourself when your code imports it. ESM, CommonJS and types are
 included. The first start pulls `DEFAULT_ANVIL_IMAGE`.
 
-## Deep dive
+## Concepts
 
-- [Runtimes: Docker and local binaries](../deep-dives/runtimes.md)
+- [Runtimes: Docker and local binaries](../concepts/runtimes.md)

@@ -3,7 +3,11 @@
  * neon gradient, Poppins headings over Roboto Mono body text, dark by default, glass navbar.
  * Brand tokens are --hl-*; Infima's --ifm-* variables are mapped onto them.
  */
-@import url("https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&family=Roboto+Mono:wght@400;500;700&display=swap");
+
+/*
+ * Fonts are self-hosted from static/fonts; their @font-face rules and preloads are in
+ * docusaurus.config.ts (headTags), so loading them never blocks rendering.
+ */
 
 :root {
   --hl-primary: #ae00ee;
@@ -19,9 +23,12 @@
   --hl-border: #f3f3f4;
   --hl-border-alt: #e7e7e9;
   --hl-code-bg: #f3f3f3;
-  --hl-shadow-button: 0 0 2px 3px rgb(239 151 232 / 0.25), 0 0 4px 5px rgb(239 151 232 / 0.25);
-  --hl-shadow-button-hover: 0 0 10px rgb(239 151 232), 0 0 20px #ef97e8, 0 0 20px rgb(255 255 255) inset;
-  --hl-shadow-card: rgb(50 50 93 / 0.25) 0 13px 27px -5px, rgb(0 0 0 / 0.3) 0 8px 16px -8px;
+  --hl-shadow-button:
+    0 0 2px 3px rgb(239 151 232 / 0.25), 0 0 4px 5px rgb(239 151 232 / 0.25);
+  --hl-shadow-button-hover:
+    0 0 10px rgb(239 151 232), 0 0 20px #ef97e8, 0 0 20px rgb(255 255 255) inset;
+  --hl-shadow-card:
+    rgb(50 50 93 / 0.25) 0 13px 27px -5px, rgb(0 0 0 / 0.3) 0 8px 16px -8px;
 
   --ifm-color-primary: #ae00ee;
   --ifm-color-primary-dark: #9d00d6;
@@ -31,9 +38,12 @@
   --ifm-color-primary-lighter: #c31aff;
   --ifm-color-primary-lightest: #cc40ff;
 
-  --ifm-font-family-base: "Roboto Mono", "Courier New", "Lucida Console", Monaco, monospace;
-  --ifm-font-family-monospace: "Roboto Mono", "Courier New", "Lucida Console", Monaco, monospace;
-  --ifm-heading-font-family: "Poppins", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --ifm-font-family-base:
+    "Roboto Mono", "Courier New", "Lucida Console", Monaco, monospace;
+  --ifm-font-family-monospace:
+    "Roboto Mono", "Courier New", "Lucida Console", Monaco, monospace;
+  --ifm-heading-font-family:
+    "Poppins", "Helvetica Neue", Helvetica, Arial, sans-serif;
   --ifm-heading-font-weight: 700;
   --ifm-heading-line-height: 1.3;
   --ifm-line-height-base: 1.6;
@@ -90,7 +100,12 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
-h1, h2, h3, h4, h5, h6 {
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
   letter-spacing: -0.2px;
 }
 
@@ -101,7 +116,11 @@ h1, h2, h3, h4, h5, h6 {
 
 /* Brand gradient as a text fill. */
 .text-gradient {
-  background-image: linear-gradient(90deg, var(--hl-gradient-from) 0%, var(--hl-gradient-to) 100%);
+  background-image: linear-gradient(
+    90deg,
+    var(--hl-gradient-from) 0%,
+    var(--hl-gradient-to) 100%
+  );
   background-clip: text;
   -webkit-background-clip: text;
   color: transparent;
@@ -172,7 +191,11 @@ h1, h2, h3, h4, h5, h6 {
   overflow: hidden;
   border: none;
   color: #fff;
-  background-image: linear-gradient(90deg, var(--hl-gradient-from) 0%, var(--hl-gradient-to) 100%);
+  background-image: linear-gradient(
+    90deg,
+    var(--hl-gradient-from) 0%,
+    var(--hl-gradient-to) 100%
+  );
   box-shadow: var(--hl-shadow-button);
 }
 
@@ -185,7 +208,12 @@ h1, h2, h3, h4, h5, h6 {
   width: 115%;
   height: 115%;
   opacity: 0.35;
-  background: linear-gradient(var(--hl-angle), rgb(255 255 255 / 0.65), rgb(239 151 232 / 0.85), rgb(239 151 232 / 0.15));
+  background: linear-gradient(
+    var(--hl-angle),
+    rgb(255 255 255 / 0.65),
+    rgb(239 151 232 / 0.85),
+    rgb(239 151 232 / 0.15)
+  );
   animation: hl-spin-angle 3s linear infinite;
 }
 
@@ -285,9 +313,8 @@ pre.prism-code,
   padding: 0;
 }
 
-/* Deep-dive links at the bottom of task pages. */
-.markdown h2#deep-dive,
-.markdown h2#deep-dives {
+/* Concept links at the bottom of task pages. */
+.markdown h2#concepts {
   margin-top: 3rem;
   padding-top: 1rem;
   border-top: 1px solid var(--hl-border-alt);

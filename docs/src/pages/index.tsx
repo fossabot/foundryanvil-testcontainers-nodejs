@@ -82,7 +82,7 @@ export default function Home(): ReactNode {
         <p className={styles.tested}>
           Every code sample on this site is copied from an example that runs
           against a real anvil node in CI.{" "}
-          <Link to="/docs/deep-dives/tested-docs">How the docs are tested</Link>
+          <Link to="/docs/concepts/tested-docs">How the docs are tested</Link>
         </p>
         <div className={styles.emblem}>
           <a

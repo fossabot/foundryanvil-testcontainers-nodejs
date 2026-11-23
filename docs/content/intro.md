@@ -28,7 +28,7 @@ New here? Start with the [quick start](get-started/quick-start.md).
 | Configure the chain, EVM, RPC server, logs or client | [Configure the node](tasks/configure/chain.md) |
 | Find out why something failed | [Debug](tasks/debugging/trace-transactions.md) |
 | Look up a method, flag or error | [Reference](reference/index.md) |
-| Understand how it works | [Deep dives](deep-dives/index.md) |
+| Understand how it works | [Concepts](concepts/index.md) |
 
 ## How to read the samples
 

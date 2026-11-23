@@ -87,7 +87,7 @@ const balance = await appClient.readContract({
 expect(balance).toBe(parseEther("50"));
 ```
 
-## Deep dive
+## Concepts
 
 - [Configure the test client](../configure/test-client.md)
-- [Architecture: node, test client, cheats](../../deep-dives/architecture.md)
+- [Architecture: node, test client, cheats](../../concepts/architecture.md)

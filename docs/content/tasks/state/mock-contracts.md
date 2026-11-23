@@ -76,7 +76,7 @@ expect(result).toBe(parseUnits("2500", 8));
 expect(await anvil.testClient.getCode({ address: ORACLE })).toBeUndefined();
 ```
 
-## Deep dive
+## Concepts
 
 - [Simulate before sending](../transactions/simulate-calls.md)
 - Reference: [cheats](../../reference/cheats.md)

@@ -84,6 +84,6 @@ To control the fees themselves (base fee, gas price, tips), see
 [Build blocks](../time-and-blocks/build-blocks.md) and
 [Configure the chain](../configure/chain.md).
 
-## Deep dive
+## Concepts
 
-- [anvil behaviours worth knowing](../../deep-dives/anvil-behaviours.md)
+- [anvil behaviours worth knowing](../../concepts/anvil-behaviours.md)

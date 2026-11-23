@@ -65,7 +65,7 @@ expect(() => chain.mine()).toThrow(
 );
 ```
 
-## Deep dive
+## Concepts
 
-- [Architecture: node, test client, cheats](../../deep-dives/architecture.md)
+- [Architecture: node, test client, cheats](../../concepts/architecture.md)
 - Reference: [every cheats step](../../reference/cheats.md)

@@ -175,7 +175,7 @@ it("sets the gas price the node suggests", async () => {
 });
 ```
 
-## Deep dive
+## Concepts
 
-- [anvil behaviours worth knowing](../../deep-dives/anvil-behaviours.md)
+- [anvil behaviours worth knowing](../../concepts/anvil-behaviours.md)
 - [Control mining](control-mining.md)

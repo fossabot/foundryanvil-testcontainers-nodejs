@@ -125,6 +125,6 @@ it("starts at the configured block number", async () => {
 });
 ```
 
-## Deep dive
+## Concepts
 
-- [Startup, readiness and file transfers](../../deep-dives/startup-and-files.md)
+- [Startup, readiness and file transfers](../../concepts/startup-and-files.md)

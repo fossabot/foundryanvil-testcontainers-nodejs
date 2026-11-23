@@ -69,8 +69,8 @@ it("…because the next test starts from the fixture again", async () => {
 
 Use the handle in tests and hooks only (`NOT_STARTED` at `describe` level).
 
-## Deep dive
+## Concepts
 
-- [How per-test isolation works](../../deep-dives/isolation.md)
-- [Performance: fast suites](../../deep-dives/performance.md)
+- [How per-test isolation works](../../concepts/isolation.md)
+- [Performance: fast suites](../../concepts/performance.md)
 - Reference: [`useAnvil()`](../../reference/use-anvil.md)

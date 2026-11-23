@@ -57,6 +57,6 @@ await anvil.testClient.rollback(); // the same as a test client action
 expect(await anvil.testClient.getBlockNumber()).toBe(height);
 ```
 
-## Deep dive
+## Concepts
 
 - Reference: [anvil extras](../../reference/anvil-actions.md)

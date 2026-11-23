@@ -27,7 +27,7 @@ Rules (enforced by `npm run check`, the unit tests and `docusaurus build`):
 - samples come from `examples/test/**` or `examples/src/**` only;
 - every region in those folders is shown on at least one page;
 - task pages start with the answer, show at least one sample, stay under
-  250 words of prose and end with a `## Deep dive` section;
+  250 words of prose and end with a `## Concepts` section;
 - every public API member, flag and error code is documented, and
   demonstrated by a sample (`test/unit/api-coverage.test.mts`).
 
@@ -66,7 +66,7 @@ plugins, scripts and tests.
 
 ```text
 docs/
-├── content/            pages: get-started/, tasks/, reference/, deep-dives/
+├── content/            pages: get-started/, tasks/, reference/, concepts/
 ├── plugins/
 │   ├── snippets/       regions, Markdown fences, sync engine, remark plugin
 │   └── reference/      tables generated from the built library
@@ -75,7 +75,7 @@ docs/
 ├── test/unit/          library tests, content rules, API coverage
 ├── test/e2e/           checks of the built site
 ├── docusaurus.config.ts
-└── sidebars.ts         task-based navigation: Tasks, Reference, Deep dives
+└── sidebars.ts         task-based navigation: Tasks, Reference, Concepts
 ```
 
 Node-run TypeScript uses `.mts` and Node's built-in type stripping (no

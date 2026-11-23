@@ -65,7 +65,7 @@ expect(await http.getFilterChanges({ filter })).toHaveLength(0); // consumed
 await http.uninstallFilter({ filter });
 ```
 
-## Deep dive
+## Concepts
 
-- [JSON ABIs are typed as `Abi`](../../deep-dives/anvil-behaviours.md#more)
+- [JSON ABIs are typed as `Abi`](../../concepts/anvil-behaviours.md#more)
 - Reference: [test client actions](../../reference/test-client.md#public-and-wallet-actions)

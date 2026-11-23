@@ -36,7 +36,7 @@ it("…until reset() returns the node to genesis", async () => {
 - Back to a prepared state: [`checkpoint()`](isolate-tests.md) or
   [`loadState()`](../state/save-and-load-state.md).
 
-## Deep dive
+## Concepts
 
-- [`reset()` vs. viem's `reset`](../../deep-dives/anvil-behaviours.md#reset)
-- [How per-test isolation works](../../deep-dives/isolation.md)
+- [`reset()` vs. viem's `reset`](../../concepts/anvil-behaviours.md#reset)
+- [How per-test isolation works](../../concepts/isolation.md)

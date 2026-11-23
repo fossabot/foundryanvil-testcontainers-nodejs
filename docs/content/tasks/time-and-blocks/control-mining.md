@@ -121,7 +121,7 @@ it("mines transactions on arrival while time keeps producing blocks", async () =
 
 Mining settings are node settings: snapshots do not restore them.
 
-## Deep dive
+## Concepts
 
-- [How per-test isolation works](../../deep-dives/isolation.md)
-- [anvil behaviours worth knowing](../../deep-dives/anvil-behaviours.md)
+- [How per-test isolation works](../../concepts/isolation.md)
+- [anvil behaviours worth knowing](../../concepts/anvil-behaviours.md)

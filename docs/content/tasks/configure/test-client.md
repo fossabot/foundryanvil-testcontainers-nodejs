@@ -108,8 +108,8 @@ expect(balance).toBe(parseEther("50"));
 | `withChain({ name, nativeCurrency, contracts, blockExplorers, testnet })` | `Anvil (<id>)`, ETH |
 | `withMulticall3(address?)` | – |
 
-## Deep dive
+## Concepts
 
-- [Architecture: node, test client, cheats](../../deep-dives/architecture.md)
-- [Validation model](../../deep-dives/validation.md)
+- [Architecture: node, test client, cheats](../../concepts/architecture.md)
+- [Validation model](../../concepts/validation.md)
 - Reference: [`TestClientOptions`](../../reference/test-client-options.md)

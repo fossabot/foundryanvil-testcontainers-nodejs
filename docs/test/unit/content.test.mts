@@ -1,6 +1,6 @@
 /**
  * Rules for the real content: task pages are short, sample-first and end
- * with their deep-dive links; every page is reachable; samples come from
+ * with their concept links; every page is reachable; samples come from
  * code the examples project actually runs.
  */
 import assert from "node:assert/strict";
@@ -56,22 +56,22 @@ describe("docs content", () => {
     assert.deepEqual(missing, []);
   });
 
-  it("keeps task pages sample-first, terse and linked to deep dives", () => {
+  it("keeps task pages sample-first, terse and linked to concepts", () => {
     const problems = tasks.flatMap((page) => {
       const issues: string[] = [];
       if (page.snippets.length === 0) issues.push("has no tested sample");
       const headings = [...page.body.matchAll(/^## (.+)$/gm)].map(
         (match) => match[1],
       );
-      if (headings.at(-1) !== "Deep dive")
-        issues.push('must end with a "## Deep dive" section');
-      const deepDive = page.body.slice(page.body.lastIndexOf("## Deep dive"));
-      if (!/\]\([^)]*\.md(#[\w-]+)?\)/.test(deepDive)) {
-        issues.push("Deep dive section has no links");
+      if (headings.at(-1) !== "Concepts")
+        issues.push('must end with a "## Concepts" section');
+      const concepts = page.body.slice(page.body.lastIndexOf("## Concepts"));
+      if (!/\]\([^)]*\.md(#[\w-]+)?\)/.test(concepts)) {
+        issues.push("Concepts section has no links");
       }
-      if (!/\]\([^)]*(deep-dives|reference)\/[^)]*\.md/.test(deepDive)) {
+      if (!/\]\([^)]*(concepts|reference)\/[^)]*\.md/.test(concepts)) {
         issues.push(
-          "Deep dive section should link to a deep dive or the reference",
+          "Concepts section should link to a concept page or the reference",
         );
       }
       // Prose outside code, tables and headings: tasks stay short.
@@ -85,7 +85,7 @@ describe("docs content", () => {
         .split(/\s+/).length;
       if (prose > 250)
         issues.push(
-          `has ${prose} words of prose (max 250): move context to a deep dive`,
+          `has ${prose} words of prose (max 250): move context to a concept page`,
         );
       // The first thing after the front matter is a sentence or a sample, not a heading.
       if (/^\s*#/.test(page.body))

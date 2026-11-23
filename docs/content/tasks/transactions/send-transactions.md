@@ -107,7 +107,7 @@ expect(receipts.map((receipt) => receipt.status)).toEqual([
 expect(await balanceOf(anvil.testClient, token, bob)).toBe(parseEther("2"));
 ```
 
-## Deep dive
+## Concepts
 
-- [Signing: anvil-signed vs. locally signed](../../deep-dives/signing.md)
+- [Signing: anvil-signed vs. locally signed](../../concepts/signing.md)
 - Reference: [`confirm()` and transaction helpers](../../reference/started-anvil-container.md#transactions)

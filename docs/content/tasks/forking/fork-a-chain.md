@@ -178,7 +178,7 @@ await mint(mainnet.testClient, token, HOLDER, 1n); // after the fork block
 forkUrl = network.urlOf(mainnet, "mainnet");
 ```
 
-## Deep dive
+## Concepts
 
-- [A fork's hardfork follows the forked chain](../../deep-dives/anvil-behaviours.md#forks)
+- [A fork's hardfork follows the forked chain](../../concepts/anvil-behaviours.md#forks)
 - Reference: [`.fork` options](../../reference/anvil-options.md#fork)

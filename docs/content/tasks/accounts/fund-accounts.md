@@ -76,6 +76,6 @@ expect(await anvil.testClient.getTransactionCount({ address: WHALE })).toBe(
 For non-standard tokens, write the storage slot yourself:
 [Mock contracts and storage](../state/mock-contracts.md).
 
-## Deep dive
+## Concepts
 
 - Reference: [cheats](../../reference/cheats.md), [anvil extras](../../reference/anvil-actions.md)

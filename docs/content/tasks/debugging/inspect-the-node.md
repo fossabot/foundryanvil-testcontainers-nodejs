@@ -44,7 +44,7 @@ try {
 }
 ```
 
-## Deep dive
+## Concepts
 
 - [Configure logging](../configure/logging.md)
 - Reference: [`StartedAnvilContainer`](../../reference/started-anvil-container.md#diagnostics)

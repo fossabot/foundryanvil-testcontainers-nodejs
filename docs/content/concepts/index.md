@@ -1,12 +1,12 @@
 ---
-slug: /deep-dives
-title: Deep dives
+slug: /concepts
+title: Concepts
 description: How the library works, and why — background for the task pages.
 ---
 
 Task pages stay short; the context lives here.
 
-| Deep dive | Read it when |
+| Concept | Read it when |
 |---|---|
 | [Architecture](architecture.md) | you wonder which layer to use: test client, cheats or container helpers |
 | [Isolation and snapshots](isolation.md) | state leaks between tests, or a revert fails |

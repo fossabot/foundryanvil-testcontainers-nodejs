@@ -65,7 +65,7 @@ try {
 }
 ```
 
-## Deep dive
+## Concepts
 
 - [Inspect the node](../debugging/inspect-the-node.md)
 - Reference: [`.logs` options](../../reference/anvil-options.md#logs)

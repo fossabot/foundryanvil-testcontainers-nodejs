@@ -18,7 +18,7 @@ test client (its retries and stop guard included). Type the result with
 For anvil methods the library wraps, prefer the typed actions: see
 [anvil extras](../../reference/anvil-actions.md).
 
-## Deep dive
+## Concepts
 
-- [Architecture: how requests reach the node](../../deep-dives/architecture.md)
+- [Architecture: how requests reach the node](../../concepts/architecture.md)
 - Reference: [`rpc()`](../../reference/started-anvil-container.md#connection)

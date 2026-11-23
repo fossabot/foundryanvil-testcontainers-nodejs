@@ -76,7 +76,7 @@ Mining mode, impersonation, gas limit, coinbase, logging and the chain id
 survive a revert: restore them in `finally`.
 :::
 
-## Deep dive
+## Concepts
 
-- [How per-test isolation works](../../deep-dives/isolation.md)
+- [How per-test isolation works](../../concepts/isolation.md)
 - Reference: [`StartedAnvilContainer` state methods](../../reference/started-anvil-container.md#state)

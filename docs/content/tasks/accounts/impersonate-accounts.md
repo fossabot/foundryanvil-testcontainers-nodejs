@@ -139,7 +139,7 @@ await anvil.confirm(
 
 Impersonation is a node setting: snapshots do not undo it.
 
-## Deep dive
+## Concepts
 
-- [Signing: anvil-signed vs. locally signed](../../deep-dives/signing.md)
-- [How per-test isolation works](../../deep-dives/isolation.md)
+- [Signing: anvil-signed vs. locally signed](../../concepts/signing.md)
+- [How per-test isolation works](../../concepts/isolation.md)

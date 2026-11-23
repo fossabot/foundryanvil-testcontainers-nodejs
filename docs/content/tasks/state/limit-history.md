@@ -72,6 +72,6 @@ expect(() => bounded.state.withPruneHistory()).toThrow(
 );
 ```
 
-## Deep dive
+## Concepts
 
 - Reference: [`.state` options](../../reference/anvil-options.md#state)

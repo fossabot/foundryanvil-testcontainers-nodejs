@@ -122,7 +122,7 @@ expect(() => new AnvilOptions().network.withCelo().withOptimism()).toThrow(
 
 `OpHardfork` with `withOptimism()`; `Hardfork.Latest` is anvil's default.
 
-## Deep dive
+## Concepts
 
-- [anvil behaviours worth knowing](../../deep-dives/anvil-behaviours.md#chain-id)
+- [anvil behaviours worth knowing](../../concepts/anvil-behaviours.md#chain-id)
 - Reference: [`.evm` options](../../reference/anvil-options.md#evm), [`.network` options](../../reference/anvil-options.md#network), [`Hardfork` values](../../reference/exports.md#enums)

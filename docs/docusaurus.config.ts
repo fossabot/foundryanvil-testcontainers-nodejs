@@ -24,11 +24,65 @@ const snippets: RemarkSnippetsOptions = {
   sourceUrl: (region) => githubSourceUrl(region),
 };
 
+/*
+ * Self-hosted fonts (Latin subset, SIL OFL; see static/fonts). A Google Fonts @import made the
+ * render-blocking stylesheet chain to a second origin. The @font-face rules are inlined in <head>,
+ * not put in custom.css, because webpack would base64-inline the small files and bloat styles.css.
+ */
+const FONTS: {
+  family: string;
+  file: string;
+  weight: number;
+  preload?: boolean;
+}[] = [
+  { family: "Poppins", file: "poppins-latin-400-normal", weight: 400 },
+  { family: "Poppins", file: "poppins-latin-500-normal", weight: 500 },
+  { family: "Poppins", file: "poppins-latin-600-normal", weight: 600 },
+  // Headings (incl. the hero title, the usual LCP element).
+  {
+    family: "Poppins",
+    file: "poppins-latin-700-normal",
+    weight: 700,
+    preload: true,
+  },
+  // Body text.
+  {
+    family: "Roboto Mono",
+    file: "roboto-mono-latin-400-normal",
+    weight: 400,
+    preload: true,
+  },
+  { family: "Roboto Mono", file: "roboto-mono-latin-500-normal", weight: 500 },
+  { family: "Roboto Mono", file: "roboto-mono-latin-700-normal", weight: 700 },
+];
+const fontUrl = (file: string) => `${BASE_URL}fonts/${file}.woff2`;
+const fontHeadTags: Config["headTags"] = [
+  ...FONTS.filter((font) => font.preload).map((font) => ({
+    tagName: "link",
+    attributes: {
+      rel: "preload",
+      href: fontUrl(font.file),
+      as: "font",
+      type: "font/woff2",
+      crossorigin: "anonymous",
+    },
+  })),
+  {
+    tagName: "style",
+    attributes: {},
+    innerHTML: FONTS.map(
+      (font) =>
+        `@font-face{font-family:"${font.family}";font-style:normal;font-weight:${font.weight};font-display:swap;src:url(${fontUrl(font.file)}) format("woff2")}`,
+    ).join(""),
+  },
+];
+
 const config: Config = {
   title: "Foundry Anvil Testcontainers",
   tagline:
     "Real anvil nodes for Node.js tests: every flag type-safe and validated, with a pre-configured viem test client.",
   favicon: "img/favicon.svg",
+  headTags: fontHeadTags,
   // Served from hellalabs.dev (src/lib/site.mts): every URL in one place.
   url: SITE_URL,
   baseUrl: BASE_URL,
@@ -71,6 +125,16 @@ const config: Config = {
       "docusaurus-plugin-llms",
       { docsDir: "content", generateLLMsTxt: true, generateLLMsFullTxt: true },
     ],
+    // "Deep dives" was renamed to "Concepts": keep the old /docs/deep-dives/* URLs working.
+    [
+      "@docusaurus/plugin-client-redirects",
+      {
+        createRedirects: (path: string) =>
+          path.startsWith("/docs/concepts")
+            ? [path.replace("/docs/concepts", "/docs/deep-dives")]
+            : undefined,
+      },
+    ],
   ],
 
   themeConfig: {
@@ -95,9 +159,9 @@ const config: Config = {
         },
         {
           type: "docSidebar",
-          sidebarId: "deepDives",
+          sidebarId: "concepts",
           position: "left",
-          label: "Deep dives",
+          label: "Concepts",
         },
         {
           href: NPM_URL,
@@ -116,7 +180,7 @@ const config: Config = {
             { label: "Quick start", to: "/docs/get-started/quick-start" },
             { label: "Tasks", to: "/docs" },
             { label: "Reference", to: "/docs/reference" },
-            { label: "Deep dives", to: "/docs/deep-dives" },
+            { label: "Concepts", to: "/docs/concepts" },
           ],
         },
         {

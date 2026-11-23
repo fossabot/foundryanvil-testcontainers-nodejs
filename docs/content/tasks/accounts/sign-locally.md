@@ -146,6 +146,6 @@ After `setChainId()`, anvil's own signer keeps the startup chain id; local
 signing keeps working. See [Configure the chain](../configure/chain.md).
 :::
 
-## Deep dive
+## Concepts
 
-- [Signing: anvil-signed vs. locally signed](../../deep-dives/signing.md)
+- [Signing: anvil-signed vs. locally signed](../../concepts/signing.md)

@@ -2,7 +2,7 @@ import type { SidebarsConfig } from "@docusaurus/plugin-content-docs";
 
 /**
  * Navigation is organised by what you are trying to do. Reference tables
- * and background ("deep dives") live in their own sidebars so task pages
+ * and background concepts live in their own sidebars so task pages
  * stay short.
  */
 const sidebars: SidebarsConfig = {
@@ -120,18 +120,18 @@ const sidebars: SidebarsConfig = {
     "reference/errors",
     "reference/exports",
   ],
-  deepDives: [
-    "deep-dives/index",
-    "deep-dives/architecture",
-    "deep-dives/isolation",
-    "deep-dives/signing",
-    "deep-dives/validation",
-    "deep-dives/startup-and-files",
-    "deep-dives/runtimes",
-    "deep-dives/performance",
-    "deep-dives/anvil-behaviours",
-    "deep-dives/tested-docs",
-    "deep-dives/dedication-to-quality",
+  concepts: [
+    "concepts/index",
+    "concepts/architecture",
+    "concepts/isolation",
+    "concepts/signing",
+    "concepts/validation",
+    "concepts/startup-and-files",
+    "concepts/runtimes",
+    "concepts/performance",
+    "concepts/anvil-behaviours",
+    "concepts/tested-docs",
+    "concepts/dedication-to-quality",
   ],
 };
 

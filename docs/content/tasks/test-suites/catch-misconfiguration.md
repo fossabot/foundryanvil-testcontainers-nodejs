@@ -47,7 +47,7 @@ expect(configuration.command).toContain("--fork-block-number");
 expect(Object.isFrozen(configuration)).toBe(true);
 ```
 
-## Deep dive
+## Concepts
 
-- [Validation model](../../deep-dives/validation.md)
+- [Validation model](../../concepts/validation.md)
 - Reference: [Flag rules](../../reference/flag-rules.md), [Errors](../../reference/errors.md)

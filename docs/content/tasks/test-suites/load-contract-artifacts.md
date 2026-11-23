@@ -63,6 +63,6 @@ export async function deployContract(
 JSON ABIs are typed `Abi`, so reads return `unknown`: narrow them in helpers, or
 use `parseAbiItem` ([Query logs](../events/query-logs.md)).
 
-## Deep dive
+## Concepts
 
 - Reference: [`loadContractAbi` / `loadContractBytecode`](../../reference/exports.md#functions)

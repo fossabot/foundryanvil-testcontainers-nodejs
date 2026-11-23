@@ -37,7 +37,7 @@ it("uses the started node", async () => {
 Example: this repository's
 [`main.yml`](https://github.com/hella-labs/foundryanvil-testcontainers-nodejs/blob/main/.github/workflows/main.yml).
 
-## Deep dive
+## Concepts
 
-- [Performance: fast suites](../deep-dives/performance.md)
-- [Runtimes: Docker and local binaries](../deep-dives/runtimes.md)
+- [Performance: fast suites](../concepts/performance.md)
+- [Runtimes: Docker and local binaries](../concepts/runtimes.md)

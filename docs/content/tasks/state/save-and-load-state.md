@@ -114,7 +114,7 @@ expect(configuration.args).toContain("/data/fixture.json");
 expect(configuration.fileImports).toEqual([]);
 ```
 
-## Deep dive
+## Concepts
 
-- [Startup, readiness and file transfers](../../deep-dives/startup-and-files.md)
-- [Performance: fast suites](../../deep-dives/performance.md)
+- [Startup, readiness and file transfers](../../concepts/startup-and-files.md)
+- [Performance: fast suites](../../concepts/performance.md)

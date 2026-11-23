@@ -57,7 +57,7 @@ export function sidebarIds(sidebarsFile: string): string[] {
   const source = fs.readFileSync(sidebarsFile, "utf8");
   return [
     ...source.matchAll(
-      /"((?:intro|get-started|tasks|reference|deep-dives)[\w/-]*)"/g,
+      /"((?:intro|get-started|tasks|reference|concepts)[\w/-]*)"/g,
     ),
   ].map((match) => match[1]);
 }

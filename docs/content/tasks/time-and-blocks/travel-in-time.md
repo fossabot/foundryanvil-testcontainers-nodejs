@@ -117,7 +117,7 @@ expect(() => durationToSeconds({ days: -1 })).toThrow(RangeError);
 
 A fixed start time: [Boot from a custom genesis](../state/custom-genesis.md).
 
-## Deep dive
+## Concepts
 
-- [How per-test isolation works](../../deep-dives/isolation.md) (the block timestamp interval is a node setting)
+- [How per-test isolation works](../../concepts/isolation.md) (the block timestamp interval is a node setting)
 - Reference: [cheats](../../reference/cheats.md)

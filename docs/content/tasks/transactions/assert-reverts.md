@@ -143,8 +143,8 @@ expect(decoded.errorName).toBe("InsufficientBalance");
 expect(decoded.args).toEqual([alice, 0n, 1n]);
 ```
 
-## Deep dive
+## Concepts
 
-- [Signing: anvil-signed vs. locally signed](../../deep-dives/signing.md)
+- [Signing: anvil-signed vs. locally signed](../../concepts/signing.md)
 - [Trace a failed transaction](../debugging/trace-transactions.md)
 - Reference: [Errors](../../reference/errors.md)

@@ -73,7 +73,7 @@ await anvil.confirm(
 );
 ```
 
-## Deep dive
+## Concepts
 
-- [Signing: anvil-signed vs. locally signed](../../deep-dives/signing.md)
+- [Signing: anvil-signed vs. locally signed](../../concepts/signing.md)
 - [Configure the test client](../configure/test-client.md)

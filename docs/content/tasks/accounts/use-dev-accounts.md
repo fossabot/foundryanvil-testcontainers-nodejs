@@ -93,7 +93,7 @@ const expected = mnemonicToAccount(DEFAULT_MNEMONIC, { addressIndex: 1 });
 expect(anvil.testClient.account.address).toBe(expected.address);
 ```
 
-## Deep dive
+## Concepts
 
-- [Signing: anvil-signed vs. locally signed](../../deep-dives/signing.md)
+- [Signing: anvil-signed vs. locally signed](../../concepts/signing.md)
 - Reference: [`.account` options](../../reference/anvil-options.md#account)

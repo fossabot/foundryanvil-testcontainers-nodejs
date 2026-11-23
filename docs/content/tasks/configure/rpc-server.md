@@ -91,7 +91,7 @@ expect(options.toCommand()).toBe(
 
 `--host` is managed by the library (always `0.0.0.0` in the container).
 
-## Deep dive
+## Concepts
 
-- [Startup, readiness and file transfers](../../deep-dives/startup-and-files.md)
+- [Startup, readiness and file transfers](../../concepts/startup-and-files.md)
 - Reference: [`.server` options](../../reference/anvil-options.md#server)

@@ -127,7 +127,7 @@ expect(groupFlags("mining")).toContain("--no-mining");
 expect(ANVIL_FLAGS.size).toBe(ANVIL_FLAG_LIST.length);
 ```
 
-## Deep dive
+## Concepts
 
-- [Validation model](../../deep-dives/validation.md)
+- [Validation model](../../concepts/validation.md)
 - Reference: [`AnvilOptions`](../../reference/anvil-options.md), [Flag rules](../../reference/flag-rules.md)

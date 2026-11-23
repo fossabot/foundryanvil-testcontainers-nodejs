@@ -46,6 +46,6 @@ expect(await balanceOf(fork.testClient, token, HOLDER)).toBe(
 `reset()` discards snapshots: don't combine it with `useAnvil()`'s per-test
 isolation in one file ([Reset the chain](../test-suites/reset-the-chain.md)).
 
-## Deep dive
+## Concepts
 
-- [`reset()` vs. viem's `reset`](../../deep-dives/anvil-behaviours.md#reset)
+- [`reset()` vs. viem's `reset`](../../concepts/anvil-behaviours.md#reset)

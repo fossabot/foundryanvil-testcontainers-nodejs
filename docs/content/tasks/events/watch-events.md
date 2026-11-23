@@ -156,7 +156,7 @@ export async function triggerUntil(
 }
 ```
 
-## Deep dive
+## Concepts
 
-- [anvil behaviours worth knowing](../../deep-dives/anvil-behaviours.md#watchers)
+- [anvil behaviours worth knowing](../../concepts/anvil-behaviours.md#watchers)
 - [Configure the test client](../configure/test-client.md)

@@ -49,7 +49,7 @@ copied *out* (`withDumpState()`, `withState()`, `withConfigOut()`) aren't
 supported; use [`dumpStateToFile()`](../tasks/state/save-and-load-state.md).
 :::
 
-## Deep dive
+## Concepts
 
-- [Runtimes: Docker and local binaries](../deep-dives/runtimes.md)
-- [Startup, readiness and file transfers](../deep-dives/startup-and-files.md)
+- [Runtimes: Docker and local binaries](../concepts/runtimes.md)
+- [Startup, readiness and file transfers](../concepts/startup-and-files.md)

@@ -59,7 +59,7 @@ Next:
 - [Fund and impersonate accounts](../tasks/accounts/impersonate-accounts.md)
 - [Fast-forward time](../tasks/time-and-blocks/travel-in-time.md)
 
-## Deep dive
+## Concepts
 
-- [Architecture: node, test client, cheats](../deep-dives/architecture.md)
-- [How per-test isolation works](../deep-dives/isolation.md)
+- [Architecture: node, test client, cheats](../concepts/architecture.md)
+- [How per-test isolation works](../concepts/isolation.md)

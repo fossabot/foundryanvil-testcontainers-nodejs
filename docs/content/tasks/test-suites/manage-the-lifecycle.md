@@ -74,7 +74,7 @@ expect((error as AnvilTestClientError).code).toBe("CONTAINER_STOPPED");
 
 With a state dump configured, `stop()` is graceful and copies the dump out first.
 
-## Deep dive
+## Concepts
 
-- [Startup, readiness and file transfers](../../deep-dives/startup-and-files.md)
+- [Startup, readiness and file transfers](../../concepts/startup-and-files.md)
 - Reference: [`useAnvil()`](../../reference/use-anvil.md), [`AnvilContainer`](../../reference/anvil-container.md)
