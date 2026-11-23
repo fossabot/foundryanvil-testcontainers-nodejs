@@ -131,6 +131,7 @@ const sidebars: SidebarsConfig = {
     "deep-dives/performance",
     "deep-dives/anvil-behaviours",
     "deep-dives/tested-docs",
+    "deep-dives/dedication-to-quality",
   ],
 };
 

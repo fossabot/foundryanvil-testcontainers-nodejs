@@ -17,3 +17,4 @@ Task pages stay short; the context lives here.
 | [Performance](performance.md) | your suite is slow |
 | [anvil behaviours](anvil-behaviours.md) | anvil does something surprising |
 | [How the docs are tested](tested-docs.md) | you contribute a page or an example |
+| [Dedication to quality](dedication-to-quality.md) | you want to know how the library and these docs are tested |

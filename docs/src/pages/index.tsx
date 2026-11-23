@@ -20,6 +20,19 @@ function Hero(): ReactNode {
           <span className="text-gradient">{siteConfig.title}</span>
         </Heading>
         <p className={styles.tagline}>{siteConfig.tagline}</p>
+        <div className={styles.badges}>
+          <a
+            href="https://codecov.io/gh/hella-labs/foundryanvil-testcontainers-nodejs"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            <img
+              src="https://codecov.io/gh/hella-labs/foundryanvil-testcontainers-nodejs/graph/badge.svg?token=WU523RPLO1"
+              alt="codecov"
+              height={20}
+            />
+          </a>
+        </div>
         <div className={styles.buttons}>
           <Link
             className="button button--primary button--lg"
