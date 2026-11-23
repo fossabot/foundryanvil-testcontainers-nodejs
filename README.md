@@ -3,6 +3,7 @@
 <h1>Foundry Anvil Testcontainers NodeJS Module</h1>
 
 <a href="https://github.com/hella-labs/foundryanvil-testcontainers-nodejs/actions/workflows/main.yml"><img alt="Build+Test Status" src="https://github.com/hella-labs/foundryanvil-testcontainers-nodejs/actions/workflows/main.yml/badge.svg" /></a>
+<a href="https://codecov.io/gh/hella-labs/foundryanvil-testcontainers-nodejs"><img alt="codecov" src="https://codecov.io/gh/hella-labs/foundryanvil-testcontainers-nodejs/graph/badge.svg?token=WU523RPLO1" /></a>
 <a href="https://www.npmjs.com/package/@hellaweb3/foundryanvil-testcontainers-nodejs"><img alt="npm version" src="https://img.shields.io/npm/v/%40hellaweb3%2Ffoundryanvil-testcontainers-nodejs" /></a>
 <a href="https://www.npmjs.com/package/@hellaweb3/foundryanvil-testcontainers-nodejs"><img alt="npm downloads" src="https://img.shields.io/npm/dy/%40hellaweb3%2Ffoundryanvil-testcontainers-nodejs" /></a>
 <a href="https://hellalabs.dev/foundryanvil-testcontainers-nodejs/"><img alt="Documentation" src="https://img.shields.io/badge/docs-task%20guides%20%26%20API-c2410c" /></a>
